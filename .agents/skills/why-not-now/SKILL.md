@@ -34,7 +34,7 @@ For a new memo:
 2. Extract HTTP/HTTPS URLs from the user's text into `related_urls`.
 3. Extract explicit reasons that make the task worth doing into `reasons_for` with `origin: user` and `confirmation: confirmed`.
 4. Save the minimal active record.
-5. Ask: **Do it now? / Why not now?**
+5. Call the MCP `choose_action` form with the saved record ID and revision.
 
 While an active dialogue is in progress, end every response with these escape options in addition to the current question:
 
@@ -60,13 +60,32 @@ When a solvable reason is found, present the smallest credible solution and ask 
 
 ## Handle User Choices
 
+For the standard action choice, create or update the conversation record first,
+then call the `choose_action` tool from the `why-not-now` MCP server with the
+record's `conversation_id` and current `revision`. The tool displays the form
+and persists the accepted action and optional note with an optimistic revision
+check. Continue from the returned action and revision.
+
+If the MCP tool is unavailable, present the same four actions as concise plain
+text and persist the user's reply through the CLI. If the user cancels the MCP
+form, leave the record active and unchanged. Never claim that a selection was
+saved when the tool returns an error.
+
 ### End
 
-Update `conversation_state` to `ended`, append an `ended` event, save, and stop. Incomplete data is valid.
+Ensure `conversation_state: ended` and an `ended` event are saved, then stop.
+The MCP `choose_action` tool already performs this update; do not write a
+duplicate event after a successful tool result. Incomplete data is valid.
 
 ### Delegate interpretation and research to AI, then end
 
-Save `conversation_state: delegated` and `enrichment: delegated` before creating a separate Codex task. Ask it to read this record; perform only interpretation, read-only research, and organization; add important research URLs with `origin: ai_research`; update through the CLI using optimistic revision checks; and never implement the underlying task or change external state.
+Ensure `conversation_state: delegated` and `enrichment: delegated` are saved
+before creating a separate Codex task. The MCP `choose_action` tool already
+performs this update; continue from its returned revision. Ask the separate task
+to read this record; perform only interpretation, read-only research, and
+organization; add important research URLs with `origin: ai_research`; update
+through the CLI using optimistic revision checks; and never implement the
+underlying task or change external state.
 
 If another task edits the record first, append delegated findings as reviewable notes instead of overwriting newer user decisions. If background task creation is unavailable, return a copyable delegation prompt and record the limitation.
 
