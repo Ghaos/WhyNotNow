@@ -30,10 +30,10 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 ```json
 {
   "id": "for_<uuid>",
-  "text": "ゲームやアプリ開発へ組み込めれば便利そう",
+  "text": "It could be useful if integrated into game or app development",
   "origin": "user",
   "confirmation": "confirmed",
-  "basis": "自分のゲームやアプリ開発に上手く組み込めると便利かも"
+  "basis": "It might be useful if I can integrate it effectively into my game or app development"
 }
 ```
 
@@ -44,11 +44,11 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 ```json
 {
   "id": "against_<uuid>",
-  "text": "大規模で使いこなすのが難しそう",
+  "text": "It looks difficult to use effectively at scale",
   "origin": "user",
   "confirmation": "confirmed",
   "solvable": true,
-  "solutions": ["最小セットアップと基本操作だけを試す"],
+  "solutions": ["Try only the minimal setup and basic operations"],
   "children": []
 }
 ```

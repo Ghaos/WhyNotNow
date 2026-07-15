@@ -13,7 +13,7 @@ It preserves both the reasons a task is worth doing and the reasons not to do it
 - Extract reasons to do the task, reasons not to do it now, possible solutions, and related URLs.
 - Save after every user turn before Codex responds.
 - End at any point or delegate read-only interpretation and research to another Codex task.
-- Start the task in a separate Codex task when the user chooses “今やる”.
+- Start the task in a separate Codex task when the user chooses “Do it now”.
 - List, inspect, append to, edit, revisit, and archive saved conversations.
 
 The MVP intentionally has no reminder, cloud sync, priority ranking, or always-on window.

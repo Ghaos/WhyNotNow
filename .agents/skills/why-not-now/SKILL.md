@@ -34,18 +34,18 @@ For a new memo:
 2. Extract HTTP/HTTPS URLs from the user's text into `related_urls`.
 3. Extract explicit reasons that make the task worth doing into `reasons_for` with `origin: user` and `confirmation: confirmed`.
 4. Save the minimal active record.
-5. Ask: **今やる？ / Why not now?**
+5. Ask: **Do it now? / Why not now?**
 
 While an active dialogue is in progress, end every response with these escape options in addition to the current question:
 
-- 終了
-- AIに解釈・調査を任せて終了
+- End
+- Delegate interpretation and research to AI, then end
 
 ## Explore Reasons
 
 ### Reasons to do it
 
-Actively notice statements such as "便利かも", "面白そう", "信頼できる", "役立ちそう", or evidence suggesting future value.
+Actively notice statements such as "This could be useful," "This looks interesting," "This seems trustworthy," or other evidence suggesting future value.
 
 - Preserve user-stated motivations as confirmed `user` reasons.
 - Store a motivation inferred by AI as `ai_inferred` and `unconfirmed`.
@@ -60,17 +60,17 @@ When a solvable reason is found, present the smallest credible solution and ask 
 
 ## Handle User Choices
 
-### 終了
+### End
 
 Update `conversation_state` to `ended`, append an `ended` event, save, and stop. Incomplete data is valid.
 
-### AIに解釈・調査を任せて終了
+### Delegate interpretation and research to AI, then end
 
 Save `conversation_state: delegated` and `enrichment: delegated` before creating a separate Codex task. Ask it to read this record; perform only interpretation, read-only research, and organization; add important research URLs with `origin: ai_research`; update through the CLI using optimistic revision checks; and never implement the underlying task or change external state.
 
 If another task edits the record first, append delegated findings as reviewable notes instead of overwriting newer user decisions. If background task creation is unavailable, return a copyable delegation prompt and record the limitation.
 
-### 今やる
+### Do it now
 
 Create a scoped execution prompt containing the goal, current task text, reasons for doing it, known blockers, relevant project, constraints, and completion conditions. Save `conversation_state: executing`, `decision: do_now`, and the prompt before creating a separate Codex task.
 
@@ -84,7 +84,7 @@ Support these explicit intents:
 - **Details**: show task text, reasons for, reason tree, solutions, URLs, notes, and current state.
 - **Append**: add a timestamped note and incorporate new structured facts.
 - **Edit**: overwrite the current task text; do not retain text-version history.
-- **Start now**: resume the `今やる` flow.
+- **Start now**: resume the `Do it now` flow.
 - **Revisit**: reopen the record with `conversation_state: active`.
 - **Archive**: hide the record from the default list without deleting it.
 
