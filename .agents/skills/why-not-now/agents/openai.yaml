@@ -1,0 +1,7 @@
+interface:
+  display_name: "Why Not Now?"
+  short_description: "Capture tasks and weigh why to do them or wait."
+  default_prompt: "Use $why-not-now to capture a task and decide whether to do it now or explain why not."
+
+policy:
+  allow_implicit_invocation: false
