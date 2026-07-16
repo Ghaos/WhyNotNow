@@ -11,7 +11,9 @@ import {
   getConversation,
 } from "../.agents/skills/why-not-now/scripts/store.mjs";
 
-const serverPath = path.resolve("server/index.mjs");
+const serverPath = path.resolve(
+  process.env.WHYNOTNOW_MCP_SERVER_PATH ?? "server/index.mjs",
+);
 
 test("MCP client discovers tools and completes form elicitation over stdio", async (t) => {
   const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "whynotnow-mcp-test-"));

@@ -8,11 +8,15 @@
     "node": ">=20"
   },
   "scripts": {
+    "build:plugin-server": "esbuild server/index.mjs --bundle --platform=node --format=esm --target=node20 --outfile=dist/why-not-now-mcp.mjs",
     "check": "node --check .agents/skills/why-not-now/scripts/store.mjs && node --check .agents/skills/why-not-now/scripts/whynotnow.mjs && node --check server/index.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
   }
 }

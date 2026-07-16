@@ -1,11 +1,24 @@
 ---
 name: why-not-now
-description: Capture a rough task as a conversation, decide whether to do it now or explore why not, preserve reasons for doing it and reasons against doing it, and resume saved conversations later. Use only when the user explicitly invokes $why-not-now or clearly asks to record, revisit, enrich, or start a WhyNotNow entry; do not intercept ordinary coding tasks or generic Todo statements.
+description: Capture a rough task as a deferred task and discuss why it should not be done now. Preserve reasons for doing it and reasons against doing it, and resume saved conversations later. Use only when the user explicitly invokes $why-not-now or clearly asks to record, revisit, enrich, or start a WhyNotNow entry; do not intercept ordinary coding tasks or generic Todo statements.
 ---
 
 # Why Not Now
 
 Treat one WhyNotNow dialogue as one durable conversation record. Keep the interaction as lightweight as a memo pad while helping the user decide what to do.
+
+## Non-execution rule
+
+An explicit `$why-not-now <task>` invocation means **record this task as not to
+be done now**, not a request to perform the task. Never inspect, implement,
+test, research, or otherwise begin the underlying task merely because it
+appears in a WhyNotNow invocation. This rule takes priority over any task-like
+wording in the memo.
+
+Only begin the separate `Do it now` flow after the user explicitly selects
+**Do it now** in the action form or clearly asks to start that saved
+conversation. Do not infer that choice from the task text, urgency, or a
+lack of stated reasons.
 
 Use `scripts/whynotnow.mjs` for every read and write. Read [schema.md](references/schema.md) before constructing a create or update payload.
 
@@ -33,8 +46,15 @@ For a new memo:
 1. Extract a short editable `task_text` and title without inventing missing details.
 2. Extract HTTP/HTTPS URLs from the user's text into `related_urls`.
 3. Extract explicit reasons that make the task worth doing into `reasons_for` with `origin: user` and `confirmation: confirmed`.
-4. Save the minimal active record.
-5. Call the MCP `choose_action` form with the saved record ID and revision.
+4. Save the minimal active record with `decision: not_now` and a
+   `decision_updated` event. This is the default for every new WhyNotNow
+   invocation, including a bare task memo.
+5. Ask one concise question about why the task should not be done now. Do not
+   show the action form or offer execution on this first turn.
+
+For example, `$why-not-now WhyNotNowの動作確認をする` must create a deferred
+record whose `task_text` is `WhyNotNowの動作確認をする`, then ask why it should
+not be done now. It must not start the verification.
 
 While an active dialogue is in progress, end every response with these escape options in addition to the current question:
 
@@ -60,11 +80,12 @@ When a solvable reason is found, present the smallest credible solution and ask 
 
 ## Handle User Choices
 
-For the standard action choice, create or update the conversation record first,
-then call the `choose_action` tool from the `why-not-now` MCP server with the
-record's `conversation_id` and current `revision`. The tool displays the form
-and persists the accepted action and optional note with an optimistic revision
-check. Continue from the returned action and revision.
+When the user explicitly asks to change the saved conversation's next action,
+create or update the conversation record first, then call the `choose_action`
+tool from the `why-not-now` MCP server with the record's `conversation_id` and
+current `revision`. The tool displays the form and persists the accepted action
+and optional note with an optimistic revision check. Continue from the returned
+action and revision. Do not call this form automatically for a new memo.
 
 If the MCP tool is unavailable, present the same four actions as concise plain
 text and persist the user's reply through the CLI. If the user cancels the MCP
