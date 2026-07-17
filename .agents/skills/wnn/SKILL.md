@@ -24,22 +24,22 @@ information, and a local project only when that project is already recorded or
 is clearly related to the task. It must never implement the task, edit project
 files, or change external state.
 
-Use `scripts/whynotnow.mjs` for every read and write. Read [schema.md](references/schema.md) before constructing a create or update payload.
+Use the `why-not-now` MCP server for every conversation read and write. The server owns JSON storage and its queue; do not run `scripts/whynotnow.mjs` in a user conversation. Read [schema.md](references/schema.md) before constructing a create or update payload.
 
 ## Persistence Contract
 
-Persist before replying to the user:
+Queue persistence before replying to the user:
 
 1. Interpret the latest user message.
-2. Create or update the conversation JSON with everything learned in that turn.
-3. Confirm that the CLI returned success.
-4. Only then send the assistant response and wait for the next user message.
+2. Call the matching MCP create or update operation with everything learned in that turn.
+3. Treat its successful acceptance as sufficient to reply; it writes JSON in the background.
+4. Only wait for the queue when the next operation needs a consistent saved record (details, list, forms, archive, or starting a task).
 
-On the first turn, create a minimal record even when only a few words are known. On later turns, load the current record and update it with `--expected-revision` to detect concurrent edits. Allow empty arrays, nulls, partial reason trees, and unanswered questions.
+On the first turn, create a minimal record even when only a few words are known. On later turns, use the MCP context operation to load the current displayable fields and update it with the returned revision to detect concurrent edits. Allow empty arrays, nulls, partial reason trees, and unanswered questions.
 
-If saving fails, say clearly that the latest turn was not saved. Do not claim success or continue as if persistence succeeded.
+Do not mention successful saving, loading, JSON, paths, IDs, or revisions. If the MCP server reports a previously failed queued write, say clearly and concisely that the latest content may not have been saved. Do not expose implementation details.
 
-The OS-standard data directory may sit outside the current workspace sandbox. If access is denied, request approval for the exact `node <absolute-path-to-this-skill>/scripts/whynotnow.mjs` command only. Do not request a broad Node.js rule.
+The MCP server may need access to the OS-standard data directory. If access is denied, request approval only for the exact bundled MCP server command. Do not request a broad Node.js rule.
 
 Do not store the full chat transcript, hidden reasoning, fetched page bodies, credentials, or source-code contents. Store only the current structured result.
 
@@ -50,7 +50,7 @@ For a new memo:
 1. Extract a short editable `task_text` and title without inventing missing details.
 2. Extract HTTP/HTTPS URLs from the user's text into `related_urls`.
 3. Extract explicit reasons that make the task worth doing into `reasons_for` with `origin: user` and `confirmation: confirmed`.
-4. Save the minimal active record with `decision: undecided`. Do not append a
+4. Call `create_conversation` with the minimal active record and `decision: undecided`. Do not append a
    `decision_updated` event before the user selects an action.
 5. Call the `choose_action` tool from the `why-not-now` MCP server immediately,
    using the created record's `conversation_id` and `revision`. The form offers
@@ -103,8 +103,8 @@ persists the accepted action and optional note with an optimistic revision
 check. Continue from the returned action and revision.
 
 If the MCP tool is unavailable, present the same two actions as concise plain
-text and persist the user's reply through the CLI. Never claim that a selection
-was saved when the tool returns an error.
+text and explain that the conversation cannot be saved in this task. Never claim
+that a selection was saved when the tool returns an error.
 
 ### Cancelled Action Form
 
@@ -135,9 +135,11 @@ Support these explicit intents:
 
 If an independent second task appears, propose starting a separate WhyNotNow conversation. Do not mix unrelated tasks into one record.
 
-## CLI Usage
+## Storage implementation
 
-Pass structured input through a UTF-8 JSON file or standard input. Never interpolate raw user text into executable shell code.
+`scripts/whynotnow.mjs` is a development and recovery utility, not a normal
+conversation integration. MCP operations accept structured input and keep raw
+JSON records out of the user-visible conversation.
 
 ```text
 node scripts/whynotnow.mjs create --input <payload.json>

@@ -248,9 +248,10 @@ async function writeAtomic(file, value) {
   }
 }
 
-export async function createConversation(input = {}, options = {}) {
+export async function createConversation(input = {}, { id: suppliedId, ...options } = {}) {
   const timestamp = nowIso();
-  const id = `wnn_${randomUUID()}`;
+  const id = suppliedId ?? `wnn_${randomUUID()}`;
+  assertConversationId(id);
   const record = normalizeRecord(input, { id, revision: 1, createdAt: timestamp, timestamp });
   record.events.push(normalizeEvent({ type: "created", data: {} }, timestamp));
   await ensureDirectory(options);

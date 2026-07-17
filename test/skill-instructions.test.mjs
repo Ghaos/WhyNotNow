@@ -13,7 +13,7 @@ test("WhyNotNow starts deferred and uses the reason-led research flow", async ()
   assert.doesNotMatch(skill, /\$why-not-now/);
   assert.match(skill, /record this task as not to\s+be done now/);
   assert.match(skill, /Never inspect, implement,\s*test, research, or otherwise begin the underlying task/);
-  assert.match(skill, /Save the minimal active record with `decision: undecided`/);
+  assert.match(skill, /Call `create_conversation` with the minimal active record and `decision: undecided`/);
   assert.match(skill, /Do not append a\s+`decision_updated` event before the user selects an action/);
   assert.match(skill, /Call the `choose_action` tool[\s\S]*immediately/);
   assert.match(skill, /exactly \*\*Do it now\*\* and \*\*Why not now\?\*\*/);
@@ -26,4 +26,6 @@ test("WhyNotNow starts deferred and uses the reason-led research flow", async ()
   assert.match(skill, /If the\s+form is cancelled, leave the record `active` with `decision: undecided`, then\s+call `choose_research`/);
   assert.match(skill, /For \*\*end\*\*, the MCP tool saves\s+`conversation_state: ended` and an `ended` event/);
   assert.doesNotMatch(skill, /Delegate interpretation and research to AI/);
+  assert.match(skill, /do not run `scripts\/whynotnow\.mjs` in a user conversation/);
+  assert.match(skill, /Do not mention successful saving, loading, JSON, paths, IDs, or revisions/);
 });

@@ -10,4 +10,4 @@ dependencies:
   tools:
     - type: "mcp"
       value: "why-not-now"
-      description: "Shows structured WhyNotNow forms and persists accepted choices."
+      description: "Shows structured WhyNotNow forms and handles private conversation persistence."

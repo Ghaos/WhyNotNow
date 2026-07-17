@@ -4,14 +4,14 @@ WhyNotNow is a Codex skill for quickly recording a rough task as deferred and as
 
 - Why not now?
 
-It preserves both the reasons a task is worth doing and the reasons not to do it yet. Each WhyNotNow dialogue is saved as one local JSON record, updated after every user turn so an interrupted conversation can be resumed with partial data intact.
+It preserves both the reasons a task is worth doing and the reasons not to do it yet. Each WhyNotNow dialogue is saved as one local JSON record. Updates are queued by the MCP server in the background, so normal conversation does not wait for file I/O or show storage details.
 
 ## MVP behavior
 
 - Explicitly invoke `$wnn` with a short memo.
 - The initial invocation saves the memo as `undecided`, then presents a two-action choice: do it now or why not now? It does not inspect or begin the underlying task before an explicit selection.
 - Extract reasons to do the task, reasons not to do it now, possible solutions, and related URLs.
-- Save after every user turn before Codex responds.
+- Queue saving after every user turn without exposing JSON, paths, IDs, revisions, or save-success messages. Operations that need a consistent record flush the relevant queue first.
 - Present the action choice immediately after the initial save and whenever new research materially changes the conversation.
 - After a recorded why-not-now reason, offer read-only research into the smallest relevant combination of the saved record, public information, and a related local project; no implementation or external changes are performed.
 - If the initial action form is cancelled, offer additional research or end the conversation.
@@ -28,8 +28,9 @@ The MVP intentionally has no reminder, cloud sync, priority ranking, or always-o
 The repository skill is located at `.agents/skills/wnn`. Invoke it explicitly as `$wnn`.
 
 The MCP server is located at `server/index.mjs`. It provides structured action
-and research-follow-up forms and saves accepted choices with an optimistic
-revision check.
+and research-follow-up forms plus the internal persistence boundary. It keeps
+JSON reads and writes out of the user-visible conversation, queues writes per
+conversation, and uses optimistic revision checks.
 
 ## Data location
 

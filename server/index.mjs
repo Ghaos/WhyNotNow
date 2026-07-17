@@ -1,39 +1,162 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { updateConversation } from "../.agents/skills/wnn/scripts/store.mjs";
+import { randomUUID } from "node:crypto";
+import {
+  createConversation,
+  getConversation,
+  listConversations,
+  updateConversation,
+} from "../.agents/skills/wnn/scripts/store.mjs";
+import { PersistenceQueue } from "./persistence.mjs";
 
 const server = new McpServer({
   name: "why-not-now",
   version: "0.1.0",
 });
 
+const persistence = new PersistenceQueue({ create: createConversation, update: updateConversation });
+const recordSchema = z.object({}).passthrough();
+
 function mutationError(error) {
   return error?.code === "REVISION_CONFLICT"
-    ? "The conversation record was updated by someone else. Please fetch the latest revision and try again."
-    : `Failed to save selection: ${error instanceof Error ? error.message : String(error)}`;
+    ? "This conversation changed elsewhere. Please try again."
+    : "WhyNotNow could not save the latest update. Please try again.";
 }
 
-function savedSelection(saved, action, note = null) {
+function failureContent(conversationId) {
+  return persistence.takeFailureNotice(conversationId)
+    ? [{ type: "text", text: "The previous WhyNotNow update could not be saved. Please try again." }]
+    : [];
+}
+
+function silent(structuredContent, conversationId) {
+  return { structuredContent, content: failureContent(conversationId) };
+}
+
+function summary(record) {
   return {
-    action,
-    note,
-    conversation_id: saved.conversation_id,
-    revision: saved.revision,
-    conversation_state: saved.conversation_state,
-    decision: saved.decision,
-    enrichment: saved.enrichment,
+    title: record.title,
+    task_text: record.task_text,
+    conversation_state: record.conversation_state,
+    lifecycle: record.lifecycle,
+    decision: record.decision,
+    enrichment: record.enrichment,
+    reasons_for: record.reasons_for,
+    why_not_now: record.why_not_now,
+    related_urls: record.related_urls,
+    notes: record.notes,
+    project_refs: record.project_refs,
   };
 }
 
-async function saveSelection(conversationId, expectedRevision, { action, patch = {}, event, note = null }) {
-  const saved = await updateConversation(conversationId, {
+function saveSelection(conversationId, expectedRevision, { action, patch = {}, event, note = null }) {
+  const queued = persistence.queueUpdate(conversationId, {
     patch,
     append_notes: note ? [{ text: note, origin: "user" }] : [],
     append_events: [event],
-  }, { expectedRevision });
-  return savedSelection(saved, action, note);
+  }, expectedRevision);
+  return {
+    action,
+    note,
+    revision: queued.revision,
+    ...(patch.conversation_state ? { conversation_state: patch.conversation_state } : {}),
+  };
 }
+
+server.registerTool(
+  "create_conversation",
+  {
+    title: "Create a WhyNotNow conversation",
+    description: "Queues creation of a conversation record without showing storage details.",
+    inputSchema: { record: recordSchema },
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ record }) => {
+    const conversationId = `wnn_${randomUUID()}`;
+    const queued = persistence.queueCreate(conversationId, record);
+    return silent({ conversation_id: conversationId, revision: queued.revision }, conversationId);
+  },
+);
+
+server.registerTool(
+  "update_conversation",
+  {
+    title: "Update a WhyNotNow conversation",
+    description: "Queues a structured conversation update without showing storage details.",
+    inputSchema: {
+      conversation_id: z.string().min(1), expected_revision: z.number().int().positive(),
+      patch: recordSchema.optional(), append_notes: z.array(recordSchema).optional(), append_events: z.array(recordSchema).optional(),
+    },
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ conversation_id: conversationId, expected_revision: expectedRevision, patch = {}, append_notes = [], append_events = [] }) => {
+    try {
+      const queued = persistence.queueUpdate(conversationId, { patch, append_notes, append_events }, expectedRevision);
+      return silent({ revision: queued.revision }, conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
+
+server.registerTool(
+  "get_conversation_context",
+  {
+    title: "Get WhyNotNow conversation context",
+    description: "Flushes queued changes and returns only the fields needed to continue the conversation.",
+    inputSchema: { conversation_id: z.string().min(1) },
+    annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ conversation_id: conversationId }) => {
+    try {
+      await persistence.flush(conversationId);
+      const record = await getConversation(conversationId);
+      return silent({ conversation: summary(record) }, conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
+
+server.registerTool(
+  "list_conversation_summaries",
+  {
+    title: "List WhyNotNow conversations",
+    description: "Flushes queued changes and returns compact conversation summaries.",
+    inputSchema: { include_archived: z.boolean().optional(), query: z.string().optional() },
+    annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ include_archived: includeArchived = false, query = "" }) => {
+    try {
+      await persistence.flushAll();
+      const result = await listConversations({ includeArchived, query });
+      return { structuredContent: { conversations: result.conversations }, content: [] };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
+
+server.registerTool(
+  "archive_conversation",
+  {
+    title: "Archive a WhyNotNow conversation",
+    description: "Queues archival without showing storage details.",
+    inputSchema: { conversation_id: z.string().min(1), expected_revision: z.number().int().positive() },
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
+    try {
+      const queued = persistence.queueUpdate(conversationId, {
+        patch: { lifecycle: "archived" }, append_events: [{ type: "archived", data: {} }],
+      }, expectedRevision);
+      return silent({ revision: queued.revision }, conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
 
 server.registerTool(
   "ping",
@@ -58,6 +181,11 @@ server.registerTool(
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
   },
   async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
+    try {
+      await persistence.flush(conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
     const result = await server.server.elicitInput({
       mode: "form",
       message: "Why not now?",
@@ -100,8 +228,8 @@ server.registerTool(
     if (!update) return { isError: true, content: [{ type: "text", text: `Unhandled selection: ${action}` }] };
 
     try {
-      const structuredContent = await saveSelection(conversationId, expectedRevision, { action, note, ...update });
-      return { structuredContent, content: [{ type: "text", text: `Selection saved: ${action}` }] };
+      const structuredContent = saveSelection(conversationId, expectedRevision, { action, note, ...update });
+      return silent(structuredContent, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
@@ -121,6 +249,11 @@ server.registerTool(
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
   },
   async ({ conversation_id: conversationId, expected_revision: expectedRevision, context }) => {
+    try {
+      await persistence.flush(conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
     const cancelledAction = context === "cancelled_action";
     const result = await server.server.elicitInput({
       mode: "form",
@@ -163,8 +296,8 @@ server.registerTool(
     if (!update) return { isError: true, content: [{ type: "text", text: `Unhandled selection: ${action}` }] };
 
     try {
-      const structuredContent = await saveSelection(conversationId, expectedRevision, { action, ...update });
-      return { structuredContent, content: [{ type: "text", text: `Selection saved: ${action}` }] };
+      const structuredContent = saveSelection(conversationId, expectedRevision, { action, ...update });
+      return silent(structuredContent, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }

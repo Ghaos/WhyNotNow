@@ -38,7 +38,10 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   await client.connect(transport);
 
   const tools = await client.listTools();
-  assert.deepEqual(tools.tools.map((tool) => tool.name), ["ping", "choose_action", "choose_research"]);
+  assert.deepEqual(tools.tools.map((tool) => tool.name), [
+    "create_conversation", "update_conversation", "get_conversation_context", "list_conversation_summaries",
+    "archive_conversation", "ping", "choose_action", "choose_research",
+  ]);
   const result = await client.callTool({ name: "ping", arguments: {} });
   assert.deepEqual(result.content, [{ type: "text", text: "pong" }]);
 
@@ -48,6 +51,7 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   assert.equal(requests[0].requestedSchema.properties.action.oneOf.length, 2);
   assert.equal(choiceResult.structuredContent.action, "why_not_now");
   assert.equal(choiceResult.structuredContent.revision, 2);
+  assert.deepEqual(choiceResult.content, []);
 
   const researchResult = await client.callTool({ name: "choose_research", arguments: {
     conversation_id: conversation.conversation_id, expected_revision: choiceResult.structuredContent.revision, context: "reason",
@@ -55,9 +59,13 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   assert.equal(requests[1].requestedSchema.properties.action.oneOf.length, 2);
   assert.equal(researchResult.structuredContent.action, "research");
   assert.equal(researchResult.structuredContent.revision, 3);
+  assert.deepEqual(researchResult.content, []);
+  const contextResult = await client.callTool({ name: "get_conversation_context", arguments: {
+    conversation_id: conversation.conversation_id,
+  } });
+  assert.equal(contextResult.structuredContent.conversation.decision, "not_now");
+  assert.equal(contextResult.structuredContent.conversation.notes.at(-1).text, "まず理由を整理する");
   const saved = await getConversation(conversation.conversation_id, storeOptions);
-  assert.equal(saved.decision, "not_now");
-  assert.equal(saved.notes.at(-1).text, "まず理由を整理する");
   assert.equal(saved.events.at(-1).type, "research_requested");
 
   const cancelledResult = await client.callTool({ name: "choose_action", arguments: {
@@ -76,6 +84,9 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   } });
   assert.equal(endResult.structuredContent.action, "end");
   assert.equal(endResult.structuredContent.conversation_state, "ended");
+  await client.callTool({ name: "get_conversation_context", arguments: {
+    conversation_id: cancelledConversation.conversation_id,
+  } });
   const ended = await getConversation(cancelledConversation.conversation_id, storeOptions);
   assert.equal(ended.events.at(-1).type, "ended");
 
@@ -83,5 +94,29 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
     conversation_id: conversation.conversation_id, expected_revision: 1, context: "reason",
   } });
   assert.equal(staleResult.isError, true);
-  assert.match(staleResult.content[0].text, /latest revision/);
+  assert.match(staleResult.content[0].text, /changed elsewhere/);
+});
+
+test("MCP persistence operations hide raw records and flush queued writes before reading", async (t) => {
+  const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "whynotnow-mcp-storage-test-"));
+  const client = new Client({ name: "why-not-now-storage-client", version: "1.0.0" }, { capabilities: {} });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [serverPath],
+    env: { ...getDefaultEnvironment(), WHYNOTNOW_HOME: dataRoot },
+  });
+  t.after(async () => { await client.close(); await fs.rm(dataRoot, { recursive: true, force: true }); });
+  await client.connect(transport);
+
+  const created = await client.callTool({ name: "create_conversation", arguments: { record: { task_text: "非表示で保存" } } });
+  assert.deepEqual(created.content, []);
+  assert.match(created.structuredContent.conversation_id, /^wnn_/);
+  assert.equal("task_text" in created.structuredContent, false);
+
+  const context = await client.callTool({ name: "get_conversation_context", arguments: {
+    conversation_id: created.structuredContent.conversation_id,
+  } });
+  assert.deepEqual(context.content, []);
+  assert.equal(context.structuredContent.conversation.task_text, "非表示で保存");
+  assert.equal("events" in context.structuredContent.conversation, false);
 });
