@@ -8,7 +8,7 @@ It preserves both the reasons a task is worth doing and the reasons not to do it
 
 ## MVP behavior
 
-- Explicitly invoke `$why-not-now` with a short memo.
+- Explicitly invoke `$wnn` with a short memo.
 - The initial invocation always saves the memo as `not_now`; it does not inspect or begin the underlying task.
 - Extract reasons to do the task, reasons not to do it now, possible solutions, and related URLs.
 - Save after every user turn before Codex responds.
@@ -24,7 +24,7 @@ The MVP intentionally has no reminder, cloud sync, priority ranking, or always-o
 - Codex with repository skills support
 - Node.js 20 or later
 
-The repository skill is located at `.agents/skills/why-not-now`. Invoke it explicitly as `$why-not-now`.
+The repository skill is located at `.agents/skills/wnn`. Invoke it explicitly as `$wnn`.
 
 The MCP server is located at `server/index.mjs`. It provides a structured
 four-action form and saves accepted choices with an optimistic revision check.
@@ -60,7 +60,7 @@ why-not-now/
 ├─ .codex-plugin/plugin.json
 ├─ .mcp.json
 ├─ dist/why-not-now-mcp.mjs
-└─ skills/why-not-now/
+└─ skills/wnn/
 ```
 
 After changing an installed personal plugin, use the `plugin-creator` cachebuster
@@ -69,8 +69,8 @@ and reinstall flow, then test it in a new Codex task.
 The storage CLI can also be inspected directly:
 
 ```powershell
-node .agents/skills/why-not-now/scripts/whynotnow.mjs --help
-node .agents/skills/why-not-now/scripts/whynotnow.mjs root
+node .agents/skills/wnn/scripts/whynotnow.mjs --help
+node .agents/skills/wnn/scripts/whynotnow.mjs root
 ```
 
 The CLI accepts create/update payloads from a UTF-8 JSON file or standard input. Raw user text should never be interpolated into executable shell code.

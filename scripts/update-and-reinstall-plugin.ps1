@@ -1,0 +1,83 @@
+[CmdletBinding()]
+param(
+    [string]$PluginPath = (Join-Path $env:USERPROFILE "plugins\why-not-now"),
+    [string]$MarketplaceName = "personal"
+)
+
+$ErrorActionPreference = "Stop"
+
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory)] [string]$FilePath,
+        [Parameter(ValueFromRemainingArguments = $true)] [string[]]$Arguments
+    )
+
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed ($LASTEXITCODE): $FilePath $($Arguments -join ' ')"
+    }
+}
+
+$RepositoryRoot = Split-Path -Parent $PSScriptRoot
+$SkillSource = Join-Path $RepositoryRoot ".agents\skills\wnn"
+$BundleSource = Join-Path $RepositoryRoot "dist\why-not-now-mcp.mjs"
+$SkillDestination = Join-Path $PluginPath "skills\wnn"
+$LegacySkillDestination = Join-Path $PluginPath "skills\why-not-now"
+$BundleDestinationDirectory = Join-Path $PluginPath "dist"
+$PluginManifest = Join-Path $PluginPath ".codex-plugin\plugin.json"
+$CachebusterScript = Join-Path $env:USERPROFILE ".codex\skills\.system\plugin-creator\scripts\update_plugin_cachebuster.py"
+
+foreach ($RequiredPath in @($SkillSource, $PluginManifest, $CachebusterScript)) {
+    if (-not (Test-Path -LiteralPath $RequiredPath)) {
+        throw "Required path was not found: $RequiredPath"
+    }
+}
+
+Push-Location $RepositoryRoot
+try {
+    Write-Host "Checking source..." -ForegroundColor Cyan
+    Invoke-NativeCommand "npm.cmd" "run" "check"
+
+    Write-Host "Running tests..." -ForegroundColor Cyan
+    Invoke-NativeCommand "npm.cmd" "test"
+
+    Write-Host "Building MCP server bundle..." -ForegroundColor Cyan
+    Invoke-NativeCommand "npm.cmd" "run" "build:plugin-server"
+
+    if (-not (Test-Path -LiteralPath $BundleSource)) {
+        throw "Build did not create bundle: $BundleSource"
+    }
+
+    Write-Host "Copying skill and bundle into plugin source..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Force -Path $SkillDestination, $BundleDestinationDirectory | Out-Null
+    Copy-Item -Path (Join-Path $SkillSource "*") -Destination $SkillDestination -Recurse -Force
+    Copy-Item -LiteralPath $BundleSource -Destination (Join-Path $BundleDestinationDirectory "why-not-now-mcp.mjs") -Force
+
+    if (Test-Path -LiteralPath $LegacySkillDestination) {
+        Remove-Item -LiteralPath $LegacySkillDestination -Recurse -Force
+    }
+
+    $PluginJson = Get-Content -Raw -LiteralPath $PluginManifest | ConvertFrom-Json
+    $PluginJson.interface.defaultPrompt = @(
+        'Use $wnn to capture a task and decide what to do next.',
+        "List my saved WhyNotNow conversations.",
+        "Revisit a saved WhyNotNow conversation."
+    )
+    [System.IO.File]::WriteAllText(
+        $PluginManifest,
+        ($PluginJson | ConvertTo-Json -Depth 10),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    Write-Host "Updating plugin cachebuster..." -ForegroundColor Cyan
+    Invoke-NativeCommand "py" $CachebusterScript $PluginPath
+
+    Write-Host "Reinstalling plugin from $MarketplaceName marketplace..." -ForegroundColor Cyan
+    Invoke-NativeCommand "codex" "plugin" "add" "why-not-now@$MarketplaceName"
+}
+finally {
+    Pop-Location
+}
+
+Write-Host ""
+Write-Host "Plugin update complete. Create a new Codex task to test the updated skill and MCP tools." -ForegroundColor Green

@@ -1,6 +1,6 @@
 ---
-name: why-not-now
-description: Capture a rough task as a deferred task and discuss why it should not be done now. Preserve reasons for doing it and reasons against doing it, and resume saved conversations later. Use only when the user explicitly invokes $why-not-now or clearly asks to record, revisit, enrich, or start a WhyNotNow entry; do not intercept ordinary coding tasks or generic Todo statements.
+name: wnn
+description: Capture a rough task as a deferred task and discuss why it should not be done now. Preserve reasons for doing it and reasons against doing it, and resume saved conversations later. Use only when the user explicitly invokes $wnn or clearly asks to record, revisit, enrich, or start a WhyNotNow entry; do not intercept ordinary coding tasks or generic Todo statements.
 ---
 
 # Why Not Now
@@ -9,7 +9,7 @@ Treat one WhyNotNow dialogue as one durable conversation record. Keep the intera
 
 ## Non-execution rule
 
-An explicit `$why-not-now <task>` invocation means **record this task as not to
+An explicit `$wnn <task>` invocation means **record this task as not to
 be done now**, not a request to perform the task. Never inspect, implement,
 test, research, or otherwise begin the underlying task merely because it
 appears in a WhyNotNow invocation. This rule takes priority over any task-like
@@ -52,7 +52,7 @@ For a new memo:
 5. Ask one concise question about why the task should not be done now. Do not
    show the action form or offer execution on this first turn.
 
-For example, `$why-not-now WhyNotNowの動作確認をする` must create a deferred
+For example, `$wnn WhyNotNowの動作確認をする` must create a deferred
 record whose `task_text` is `WhyNotNowの動作確認をする`, then ask why it should
 not be done now. It must not start the verification.
 

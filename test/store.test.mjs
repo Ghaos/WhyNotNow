@@ -12,9 +12,9 @@ import {
   normalizeUrlEntry,
   resolveDataRoot,
   updateConversation,
-} from "../.agents/skills/why-not-now/scripts/store.mjs";
+} from "../.agents/skills/wnn/scripts/store.mjs";
 
-const cliPath = path.resolve(".agents/skills/why-not-now/scripts/whynotnow.mjs");
+const cliPath = path.resolve(".agents/skills/wnn/scripts/whynotnow.mjs");
 
 function runCli(args, { env, input = "" } = {}) {
   return new Promise((resolve, reject) => {

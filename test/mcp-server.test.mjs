@@ -9,7 +9,7 @@ import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
   createConversation,
   getConversation,
-} from "../.agents/skills/why-not-now/scripts/store.mjs";
+} from "../.agents/skills/wnn/scripts/store.mjs";
 
 const serverPath = path.resolve(
   process.env.WHYNOTNOW_MCP_SERVER_PATH ?? "server/index.mjs",

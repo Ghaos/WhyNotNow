@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { updateConversation } from "../.agents/skills/why-not-now/scripts/store.mjs";
+import { updateConversation } from "../.agents/skills/wnn/scripts/store.mjs";
 
 const server = new McpServer({
   name: "why-not-now",
