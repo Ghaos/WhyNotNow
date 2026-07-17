@@ -46,15 +46,23 @@ For a new memo:
 1. Extract a short editable `task_text` and title without inventing missing details.
 2. Extract HTTP/HTTPS URLs from the user's text into `related_urls`.
 3. Extract explicit reasons that make the task worth doing into `reasons_for` with `origin: user` and `confirmation: confirmed`.
-4. Save the minimal active record with `decision: not_now` and a
-   `decision_updated` event. This is the default for every new WhyNotNow
-   invocation, including a bare task memo.
-5. Ask one concise question about why the task should not be done now. Do not
-   show the action form or offer execution on this first turn.
+4. Save the minimal active record with `decision: undecided`. Do not append a
+   `decision_updated` event before the user selects an action.
+5. Call the `choose_action` tool from the `why-not-now` MCP server immediately,
+   using the created record's `conversation_id` and `revision`. The form offers
+   the standard four actions: **Do it now**, **Why not now?**, **End**, and
+   **Delegate interpretation and research to AI, then end**.
+6. Continue from the accepted action and returned revision. For **Why not now?**,
+   ask one concise question about why the task should not be done now. For the
+   other actions, follow the corresponding flow below. If the form is
+   cancelled, leave the record `active` with `decision: undecided` and stop.
+   If the MCP tool is unavailable, present the same four actions as concise
+   plain text and persist the user's next reply through the CLI.
 
-For example, `$wnn WhyNotNowの動作確認をする` must create a deferred
-record whose `task_text` is `WhyNotNowの動作確認をする`, then ask why it should
-not be done now. It must not start the verification.
+For example, `$wnn WhyNotNowの動作確認をする` must create an undecided record
+whose `task_text` is `WhyNotNowの動作確認をする`, then invoke the action form.
+It must not start the verification before the user explicitly chooses **Do it
+now**.
 
 While an active dialogue is in progress, end every response with these escape options in addition to the current question:
 
@@ -80,12 +88,13 @@ When a solvable reason is found, present the smallest credible solution and ask 
 
 ## Handle User Choices
 
-When the user explicitly asks to change the saved conversation's next action,
-create or update the conversation record first, then call the `choose_action`
-tool from the `why-not-now` MCP server with the record's `conversation_id` and
-current `revision`. The tool displays the form and persists the accepted action
-and optional note with an optimistic revision check. Continue from the returned
-action and revision. Do not call this form automatically for a new memo.
+For a newly created memo, call `choose_action` immediately after its initial
+save. When the user later explicitly asks to change the saved conversation's
+next action, first create or update the conversation record, then call the
+`choose_action` tool from the `why-not-now` MCP server with the record's
+`conversation_id` and current `revision`. The tool displays the form and
+persists the accepted action and optional note with an optimistic revision
+check. Continue from the returned action and revision.
 
 If the MCP tool is unavailable, present the same four actions as concise plain
 text and persist the user's reply through the CLI. If the user cancels the MCP

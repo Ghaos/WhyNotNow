@@ -5,7 +5,7 @@ import test from "node:test";
 
 const skillPath = path.resolve(".agents/skills/wnn/SKILL.md");
 
-test("new WhyNotNow memos are explicitly deferred and cannot start work", async () => {
+test("new WhyNotNow memos require an explicit action before work can start", async () => {
   const skill = await fs.readFile(skillPath, "utf8");
 
   assert.match(skill, /^name: wnn$/m);
@@ -13,6 +13,10 @@ test("new WhyNotNow memos are explicitly deferred and cannot start work", async 
   assert.doesNotMatch(skill, /\$why-not-now/);
   assert.match(skill, /invocation means \*\*record this task as not to\s*be done now\*\*/);
   assert.match(skill, /Never inspect, implement,\s*test, research, or otherwise begin the underlying task/);
-  assert.match(skill, /Save the minimal active record with `decision: not_now`/);
-  assert.match(skill, /Do not\s+show the action form or offer execution on this first turn/);
+  assert.match(skill, /Save the minimal active record with `decision: undecided`/);
+  assert.match(skill, /Do not append a\s+`decision_updated` event before the user selects an action/);
+  assert.match(skill, /Call the `choose_action` tool[\s\S]*immediately/);
+  assert.match(skill, /created record's `conversation_id` and `revision`/);
+  assert.match(skill, /If the form is\s+cancelled, leave the record `active` with `decision: undecided`/);
+  assert.match(skill, /must create an undecided record[\s\S]*then invoke the action form/);
 });

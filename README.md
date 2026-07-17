@@ -9,10 +9,10 @@ It preserves both the reasons a task is worth doing and the reasons not to do it
 ## MVP behavior
 
 - Explicitly invoke `$wnn` with a short memo.
-- The initial invocation always saves the memo as `not_now`; it does not inspect or begin the underlying task.
+- The initial invocation saves the memo as `undecided`, then presents the standard four-action choice; it does not inspect or begin the underlying task before an explicit selection.
 - Extract reasons to do the task, reasons not to do it now, possible solutions, and related URLs.
 - Save after every user turn before Codex responds.
-- Present the standard action choice only when the user explicitly asks to change the saved conversation's next action.
+- Present the standard action choice immediately after the initial save and whenever the user explicitly asks to change the saved conversation's next action.
 - End at any point or delegate read-only interpretation and research to another Codex task.
 - Start the task in a separate Codex task when the user chooses “Do it now”.
 - List, inspect, append to, edit, revisit, and archive saved conversations.

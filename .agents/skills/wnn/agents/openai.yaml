@@ -1,7 +1,7 @@
 interface:
   display_name: "Why Not Now?"
-  short_description: "Record a task for later and discuss why not now."
-  default_prompt: "Use $wnn to record a task as deferred and discuss why it should not be done now. Do not start the task."
+  short_description: "Record a task and choose the next action."
+  default_prompt: "Use $wnn to record a task, then choose whether to do it now, explore why not now, end, or delegate research."
 
 policy:
   allow_implicit_invocation: false
