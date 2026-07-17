@@ -21,8 +21,11 @@ test("WhyNotNow starts deferred and uses the reason-led research flow", async ()
   assert.match(skill, /smallest credible path toward resolving it/);
   assert.match(skill, /Call `choose_research` with `context: reason`/);
   assert.match(skill, /local project only when that project is already recorded or\s+is clearly related/);
-  assert.match(skill, /If research produced new information, present it and call `choose_action` again/);
-  assert.match(skill, /If it produced none, say so and continue/);
+  assert.match(skill, /If research produced new information, first present the findings/);
+  assert.match(skill, /first present the findings to the user in a normal assistant response/);
+  assert.match(skill, /Only after that response has been delivered, call `choose_action` again/);
+  assert.match(skill, /must see the findings before being asked to choose/);
+  assert.match(skill, /If research produced none, say so and continue/);
   assert.match(skill, /If the\s+form is cancelled, leave the record `active` with `decision: undecided`, then\s+call `choose_research`/);
   assert.match(skill, /For \*\*end\*\*, the MCP tool saves\s+`conversation_state: ended` and an `ended` event/);
   assert.doesNotMatch(skill, /Delegate interpretation and research to AI/);

@@ -90,7 +90,7 @@ When the user answers the **Why not now?** question:
 4. For **keep deferred**, leave the record active and continue with the next concise reason or constraint question.
 5. For **research**, choose the smallest relevant read-only target set from the saved record, public information, and an already-related or clearly related local project. If no target can be selected safely, ask the user before researching.
 6. Save new evidence as `ai_research` reasons, new normalized URLs as `ai_research` URLs, and a short `ai_research` note. Set `enrichment` to `partial` when new information was found, or `complete` when the selected research found none.
-7. If research produced new information, present it and call `choose_action` again with the latest revision. If it produced none, say so and continue the Why not now dialogue instead of re-showing the action form.
+7. If research produced new information, first present the findings to the user in a normal assistant response, including the smallest useful evidence and any relevant limitation. Only after that response has been delivered, call `choose_action` again with the latest revision. Never open the action form in the same tool-only sequence that saved the research: the user must see the findings before being asked to choose. If research produced none, say so and continue the Why not now dialogue instead of re-showing the action form.
 
 ## Handle User Choices
 
