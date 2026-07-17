@@ -9,11 +9,12 @@ It preserves both the reasons a task is worth doing and the reasons not to do it
 ## MVP behavior
 
 - Explicitly invoke `$wnn` with a short memo.
-- The initial invocation saves the memo as `undecided`, then presents the standard four-action choice; it does not inspect or begin the underlying task before an explicit selection.
+- The initial invocation saves the memo as `undecided`, then presents a two-action choice: do it now or why not now? It does not inspect or begin the underlying task before an explicit selection.
 - Extract reasons to do the task, reasons not to do it now, possible solutions, and related URLs.
 - Save after every user turn before Codex responds.
-- Present the standard action choice immediately after the initial save and whenever the user explicitly asks to change the saved conversation's next action.
-- End at any point or delegate read-only interpretation and research to another Codex task.
+- Present the action choice immediately after the initial save and whenever new research materially changes the conversation.
+- After a recorded why-not-now reason, offer read-only research into the smallest relevant combination of the saved record, public information, and a related local project; no implementation or external changes are performed.
+- If the initial action form is cancelled, offer additional research or end the conversation.
 - Start the task in a separate Codex task when the user chooses “Do it now”.
 - List, inspect, append to, edit, revisit, and archive saved conversations.
 
@@ -26,8 +27,9 @@ The MVP intentionally has no reminder, cloud sync, priority ranking, or always-o
 
 The repository skill is located at `.agents/skills/wnn`. Invoke it explicitly as `$wnn`.
 
-The MCP server is located at `server/index.mjs`. It provides a structured
-four-action form and saves accepted choices with an optimistic revision check.
+The MCP server is located at `server/index.mjs`. It provides structured action
+and research-follow-up forms and saves accepted choices with an optimistic
+revision check.
 
 ## Data location
 

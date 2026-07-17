@@ -18,7 +18,11 @@ wording in the memo.
 Only begin the separate `Do it now` flow after the user explicitly selects
 **Do it now** in the action form or clearly asks to start that saved
 conversation. Do not infer that choice from the task text, urgency, or a
-lack of stated reasons.
+lack of stated reasons. Read-only research is permitted only after the user
+selects the research follow-up. It may read the saved record, relevant public
+information, and a local project only when that project is already recorded or
+is clearly related to the task. It must never implement the task, edit project
+files, or change external state.
 
 Use `scripts/whynotnow.mjs` for every read and write. Read [schema.md](references/schema.md) before constructing a create or update payload.
 
@@ -50,24 +54,18 @@ For a new memo:
    `decision_updated` event before the user selects an action.
 5. Call the `choose_action` tool from the `why-not-now` MCP server immediately,
    using the created record's `conversation_id` and `revision`. The form offers
-   the standard four actions: **Do it now**, **Why not now?**, **End**, and
-   **Delegate interpretation and research to AI, then end**.
+   exactly **Do it now** and **Why not now?**.
 6. Continue from the accepted action and returned revision. For **Why not now?**,
-   ask one concise question about why the task should not be done now. For the
-   other actions, follow the corresponding flow below. If the form is
-   cancelled, leave the record `active` with `decision: undecided` and stop.
-   If the MCP tool is unavailable, present the same four actions as concise
-   plain text and persist the user's next reply through the CLI.
+   ask one concise question about why the task should not be done now. If the
+   form is cancelled, leave the record `active` with `decision: undecided`, then
+   call `choose_research` with `context: cancelled_action`. If the MCP tool is
+   unavailable, present the same two actions as concise plain text and persist
+   the user's next reply through the CLI.
 
 For example, `$wnn WhyNotNowの動作確認をする` must create an undecided record
 whose `task_text` is `WhyNotNowの動作確認をする`, then invoke the action form.
 It must not start the verification before the user explicitly chooses **Do it
 now**.
-
-While an active dialogue is in progress, end every response with these escape options in addition to the current question:
-
-- End
-- Delegate interpretation and research to AI, then end
 
 ## Explore Reasons
 
@@ -84,7 +82,15 @@ Actively notice statements such as "This could be useful," "This looks interesti
 
 Build a flexible reason tree. For each node, record the reason, whether it appears solvable now, a minimal solution when one exists, and child reasons when further breakdown is useful.
 
-When a solvable reason is found, present the smallest credible solution and ask whether to use it and do the task now or remain deferred. Do not pressure the user after they decide.
+When the user answers the **Why not now?** question:
+
+1. Save the reason as confirmed user information before responding.
+2. State the smallest credible path toward resolving it when one exists; otherwise say that it is not yet clearly solvable.
+3. Call `choose_research` with `context: reason` and the latest revision. This form offers **research a solution** and **keep deferred**.
+4. For **keep deferred**, leave the record active and continue with the next concise reason or constraint question.
+5. For **research**, choose the smallest relevant read-only target set from the saved record, public information, and an already-related or clearly related local project. If no target can be selected safely, ask the user before researching.
+6. Save new evidence as `ai_research` reasons, new normalized URLs as `ai_research` URLs, and a short `ai_research` note. Set `enrichment` to `partial` when new information was found, or `complete` when the selected research found none.
+7. If research produced new information, present it and call `choose_action` again with the latest revision. If it produced none, say so and continue the Why not now dialogue instead of re-showing the action form.
 
 ## Handle User Choices
 
@@ -96,28 +102,18 @@ next action, first create or update the conversation record, then call the
 persists the accepted action and optional note with an optimistic revision
 check. Continue from the returned action and revision.
 
-If the MCP tool is unavailable, present the same four actions as concise plain
-text and persist the user's reply through the CLI. If the user cancels the MCP
-form, leave the record active and unchanged. Never claim that a selection was
-saved when the tool returns an error.
+If the MCP tool is unavailable, present the same two actions as concise plain
+text and persist the user's reply through the CLI. Never claim that a selection
+was saved when the tool returns an error.
 
-### End
+### Cancelled Action Form
 
-Ensure `conversation_state: ended` and an `ended` event are saved, then stop.
-The MCP `choose_action` tool already performs this update; do not write a
-duplicate event after a successful tool result. Incomplete data is valid.
-
-### Delegate interpretation and research to AI, then end
-
-Ensure `conversation_state: delegated` and `enrichment: delegated` are saved
-before creating a separate Codex task. The MCP `choose_action` tool already
-performs this update; continue from its returned revision. Ask the separate task
-to read this record; perform only interpretation, read-only research, and
-organization; add important research URLs with `origin: ai_research`; update
-through the CLI using optimistic revision checks; and never implement the
-underlying task or change external state.
-
-If another task edits the record first, append delegated findings as reviewable notes instead of overwriting newer user decisions. If background task creation is unavailable, return a copyable delegation prompt and record the limitation.
+After an initial action-form cancellation, `choose_research` asks whether to do
+additional research or end. For **research**, use the task text and existing
+record to select a minimal read-only target set, then follow the findings
+persistence and re-prompt rules above. For **end**, the MCP tool saves
+`conversation_state: ended` and an `ended` event; do not write a duplicate event.
+If this follow-up form is cancelled, leave the record active and unchanged.
 
 ### Do it now
 

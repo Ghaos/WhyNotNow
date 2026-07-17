@@ -1,7 +1,7 @@
 interface:
   display_name: "Why Not Now?"
   short_description: "Record a task and choose the next action."
-  default_prompt: "Use $wnn to record a task, then choose whether to do it now, explore why not now, end, or delegate research."
+  default_prompt: "Use $wnn to record a task, choose whether to do it now or explore why not now, and optionally research a path toward resolving a recorded blocker."
 
 policy:
   allow_implicit_invocation: false
