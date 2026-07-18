@@ -49,4 +49,4 @@ conversation. Approve only the permission shown for WhyNotNow.
 ## For contributors
 
 Development, testing, packaging, and data-handling details are in
-[the developer guide](docs/development.md).
+[AGENTS.md](AGENTS.md).
