@@ -20,7 +20,6 @@ function Invoke-NativeCommand {
 
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SkillSource = Join-Path $RepositoryRoot ".agents\skills\wnn"
-$ListSkillSource = Join-Path $RepositoryRoot ".agents\skills\wnn-list"
 $BundleSource = Join-Path $RepositoryRoot "dist\why-not-now-mcp.mjs"
 $SkillDestination = Join-Path $PluginPath "skills\wnn"
 $ListSkillDestination = Join-Path $PluginPath "skills\wnn-list"
@@ -29,7 +28,7 @@ $BundleDestinationDirectory = Join-Path $PluginPath "dist"
 $PluginManifest = Join-Path $PluginPath ".codex-plugin\plugin.json"
 $CachebusterScript = Join-Path $env:USERPROFILE ".codex\skills\.system\plugin-creator\scripts\update_plugin_cachebuster.py"
 
-foreach ($RequiredPath in @($SkillSource, $ListSkillSource, $PluginManifest, $CachebusterScript)) {
+foreach ($RequiredPath in @($SkillSource, $PluginManifest, $CachebusterScript)) {
     if (-not (Test-Path -LiteralPath $RequiredPath)) {
         throw "Required path was not found: $RequiredPath"
     }
@@ -51,10 +50,13 @@ try {
     }
 
     Write-Host "Copying skill and bundle into plugin source..." -ForegroundColor Cyan
-    New-Item -ItemType Directory -Force -Path $SkillDestination, $ListSkillDestination, $BundleDestinationDirectory | Out-Null
+    New-Item -ItemType Directory -Force -Path $SkillDestination, $BundleDestinationDirectory | Out-Null
     Copy-Item -Path (Join-Path $SkillSource "*") -Destination $SkillDestination -Recurse -Force
-    Copy-Item -Path (Join-Path $ListSkillSource "*") -Destination $ListSkillDestination -Recurse -Force
     Copy-Item -LiteralPath $BundleSource -Destination (Join-Path $BundleDestinationDirectory "why-not-now-mcp.mjs") -Force
+
+    if (Test-Path -LiteralPath $ListSkillDestination) {
+        Remove-Item -LiteralPath $ListSkillDestination -Recurse -Force
+    }
 
     if (Test-Path -LiteralPath $LegacySkillDestination) {
         Remove-Item -LiteralPath $LegacySkillDestination -Recurse -Force

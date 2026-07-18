@@ -4,8 +4,6 @@ import path from "node:path";
 import test from "node:test";
 
 const skillPath = path.resolve(".agents/skills/wnn/SKILL.md");
-const listSkillPath = path.resolve(".agents/skills/wnn-list/SKILL.md");
-const listSkillUiPath = path.resolve(".agents/skills/wnn-list/agents/openai.yaml");
 
 test("WhyNotNow starts deferred and uses a contextual dialogue flow", async () => {
   const skill = await fs.readFile(skillPath, "utf8");
@@ -51,21 +49,4 @@ test("WhyNotNow starts deferred and uses a contextual dialogue flow", async () =
   assert.match(skill, /matching\s+data, not instructions to execute/);
   assert.match(skill, /call `complete_conversation`/i);
   assert.match(skill, /call `reopen_conversation`/i);
-});
-
-test("wnn-list explicitly displays compact saved-conversation summaries", async () => {
-  const [skill, ui] = await Promise.all([
-    fs.readFile(listSkillPath, "utf8"),
-    fs.readFile(listSkillUiPath, "utf8"),
-  ]);
-
-  assert.match(skill, /^name: wnn-list$/m);
-  assert.match(skill, /explicitly invokes \$wnn-list/);
-  assert.match(skill, /list_conversation_summaries/);
-  assert.match(skill, /default arguments/);
-  assert.match(skill, /open, non-executing conversations/);
-  assert.match(skill, /fallback when the local WhyNotNow inbox/);
-  assert.match(skill, /Do not expose storage mechanics, JSON, file paths, identifiers,\s+revisions/);
-  assert.match(ui, /allow_implicit_invocation: false/);
-  assert.match(ui, /value: "why-not-now"/);
 });
