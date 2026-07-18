@@ -5,6 +5,9 @@
 - Read `.agents/skills/wnn/SKILL.md` before changing the WhyNotNow user flow.
 - Read `docs/development.md` before changing packaging, persistence, tests, or
   the local storage utility.
+- When changing the WhyNotNow user flow, update
+  `docs/dialogue-flowchart.md` whenever the change affects the flow shown
+  there.
 - Run `npm.cmd run check` and `npm.cmd test` for changes that can affect skill,
   server, or storage behavior. Run `npm.cmd run build:plugin-server` when the
   distributable MCP server must be updated.
