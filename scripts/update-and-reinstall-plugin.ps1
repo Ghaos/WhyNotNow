@@ -20,14 +20,16 @@ function Invoke-NativeCommand {
 
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SkillSource = Join-Path $RepositoryRoot ".agents\skills\wnn"
+$ListSkillSource = Join-Path $RepositoryRoot ".agents\skills\wnn-list"
 $BundleSource = Join-Path $RepositoryRoot "dist\why-not-now-mcp.mjs"
 $SkillDestination = Join-Path $PluginPath "skills\wnn"
+$ListSkillDestination = Join-Path $PluginPath "skills\wnn-list"
 $LegacySkillDestination = Join-Path $PluginPath "skills\why-not-now"
 $BundleDestinationDirectory = Join-Path $PluginPath "dist"
 $PluginManifest = Join-Path $PluginPath ".codex-plugin\plugin.json"
 $CachebusterScript = Join-Path $env:USERPROFILE ".codex\skills\.system\plugin-creator\scripts\update_plugin_cachebuster.py"
 
-foreach ($RequiredPath in @($SkillSource, $PluginManifest, $CachebusterScript)) {
+foreach ($RequiredPath in @($SkillSource, $ListSkillSource, $PluginManifest, $CachebusterScript)) {
     if (-not (Test-Path -LiteralPath $RequiredPath)) {
         throw "Required path was not found: $RequiredPath"
     }
@@ -49,8 +51,9 @@ try {
     }
 
     Write-Host "Copying skill and bundle into plugin source..." -ForegroundColor Cyan
-    New-Item -ItemType Directory -Force -Path $SkillDestination, $BundleDestinationDirectory | Out-Null
+    New-Item -ItemType Directory -Force -Path $SkillDestination, $ListSkillDestination, $BundleDestinationDirectory | Out-Null
     Copy-Item -Path (Join-Path $SkillSource "*") -Destination $SkillDestination -Recurse -Force
+    Copy-Item -Path (Join-Path $ListSkillSource "*") -Destination $ListSkillDestination -Recurse -Force
     Copy-Item -LiteralPath $BundleSource -Destination (Join-Path $BundleDestinationDirectory "why-not-now-mcp.mjs") -Force
 
     if (Test-Path -LiteralPath $LegacySkillDestination) {
@@ -60,7 +63,7 @@ try {
     $PluginJson = Get-Content -Raw -LiteralPath $PluginManifest | ConvertFrom-Json
     $PluginJson.interface.defaultPrompt = @(
         'Use $wnn to capture a task and decide what to do next.',
-        "List my saved WhyNotNow conversations.",
+        'Use $wnn-list to show my saved WhyNotNow conversations.',
         "Revisit a saved WhyNotNow conversation."
     )
     [System.IO.File]::WriteAllText(
@@ -70,7 +73,7 @@ try {
     )
 
     Write-Host "Updating plugin cachebuster..." -ForegroundColor Cyan
-    Invoke-NativeCommand "py" $CachebusterScript $PluginPath
+    Invoke-NativeCommand "python" $CachebusterScript $PluginPath
 
     Write-Host "Reinstalling plugin from $MarketplaceName marketplace..." -ForegroundColor Cyan
     Invoke-NativeCommand "codex" "plugin" "add" "why-not-now@$MarketplaceName"

@@ -34,9 +34,9 @@ now**.
 
 ## Return to an idea
 
-Ask WhyNotNow to list, show, add to, edit, revisit, start, or archive a saved
-conversation. Each idea remains separate, so unrelated tasks do not get mixed
-together.
+Use `$wnn-list` to show saved WhyNotNow conversations. Use `$wnn` to show,
+add to, edit, revisit, start, or archive an individual saved conversation.
+Each idea remains separate, so unrelated tasks do not get mixed together.
 
 ## Privacy
 

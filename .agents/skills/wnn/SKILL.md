@@ -1,6 +1,6 @@
 ---
 name: wnn
-description: Capture a rough task as a deferred task and discuss why it should not be done now. Preserve reasons for doing it and reasons against doing it, and resume saved conversations later. Use only when the user explicitly invokes $wnn or clearly asks to record, revisit, enrich, or start a WhyNotNow entry; do not intercept ordinary coding tasks or generic Todo statements.
+description: Capture a rough task as a deferred task and discuss why it should not be done now. Preserve reasons for doing it and reasons against doing it, and work with an individual saved conversation. Use only when the user explicitly invokes $wnn or clearly asks to record, revisit, enrich, or start a WhyNotNow entry; do not intercept ordinary coding tasks, generic Todo statements, or requests to list saved conversations.
 ---
 
 # Why Not Now
@@ -33,7 +33,7 @@ Queue persistence before replying to the user:
 1. Interpret the latest user message.
 2. Call the matching MCP create or update operation with everything learned in that turn.
 3. Treat its successful acceptance as sufficient to reply; it writes JSON in the background.
-4. Only wait for the queue when the next operation needs a consistent saved record (details, list, forms, archive, or starting a task).
+4. Only wait for the queue when the next operation needs a consistent saved record (details, forms, archive, or starting a task).
 
 On the first turn, create a minimal record even when only a few words are known. On later turns, use the MCP context operation to load the current displayable fields and update it with the returned revision to detect concurrent edits. Update the current situation, desired outcome, completion conditions, active focus, covered topics, and open threads when the user provides them. Allow empty arrays, nulls, partial reason trees, and unanswered questions.
 
@@ -160,9 +160,8 @@ Use a project-backed task when a confirmed project reference exists; otherwise u
 
 ## Work With Saved Conversations
 
-Support these explicit intents:
+Support these explicit intents for an individual saved conversation:
 
-- **List**: show compact summaries ordered by latest update.
 - **Details**: show task text, reasons for, reason tree, solutions, URLs, notes, and current state.
 - **Append**: add a timestamped note and incorporate new structured facts.
 - **Edit**: overwrite the current task text; do not retain text-version history.
