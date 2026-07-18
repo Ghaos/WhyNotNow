@@ -4,7 +4,8 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 
 ## Top-level fields
 
-- `schema_version`: integer, currently `1`.
+- `schema_version`: integer, currently `2`. Version 1 records are not supported
+  because the feature has not been released with that version.
 - `conversation_id`: generated `wnn_<uuid>` identifier.
 - `source_thread_id`: originating Codex thread when available, otherwise null.
 - `revision`: incremented after every successful update.
@@ -14,13 +15,16 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 - `lifecycle`: `open`, `started`, `completed`, or `archived`.
 - `decision`: `undecided`, `do_now`, or `not_now`.
 - `enrichment`: `none`, `partial`, `delegated`, `complete`, or `failed`.
-- `interpretation`: current `goal` and optional `execution_prompt`.
+- `interpretation`: the current structured understanding: `goal`,
+  `current_situation`, `desired_outcome`, `completion_conditions`, and optional
+  `execution_prompt`.
 - `reasons_for`: motivations or evidence that make the task worth doing.
 - `why_not_now`: nested reason tree plus unresolved questions.
 - `related_urls`: normalized HTTP/HTTPS references. An empty array is valid.
 - `notes`: timestamped user or AI additions.
 - `project_refs`: confirmed related local projects.
-- `dialogue`: interaction flags such as whether the value question was already asked.
+- `dialogue`: interaction state: whether the value question was already asked,
+  the active focus, covered topics, and concise open threads.
 - `delegation` / `execution`: handoff state and destination thread IDs when available.
 - `events`: append-only decision and lifecycle events, never the full conversation.
 - `created_at`, `updated_at`, `last_processed_at`: UTC ISO-8601 timestamps.
@@ -54,6 +58,29 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 ```
 
 `solvable` may be true, false, or null while incomplete.
+
+## Dialogue state
+
+```json
+{
+  "asked_reason_for": true,
+  "active_focus": {
+    "kind": "constraint",
+    "reason_id": "against_<uuid>",
+    "summary": "The unclear completion condition is making the work feel large"
+  },
+  "covered_topics": ["constraint", "completion_condition"],
+  "open_threads": ["Clarify the smallest useful completion condition"]
+}
+```
+
+`active_focus` is null when no particular topic is active. Its `kind` is one of
+`reason_for`, `reason_against`, `background`, `priority`, `constraint`,
+`desired_outcome`, `completion_condition`, `assistance`, or `summary`.
+
+`covered_topics` uses the same conversational categories where applicable.
+`open_threads` contains concise user-visible unresolved points, not private
+reasoning or a transcript.
 
 ## Related URL
 

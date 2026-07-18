@@ -3,13 +3,21 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 export const CONVERSATION_STATES = new Set(["active", "delegated", "ended", "executing"]);
 export const LIFECYCLES = new Set(["open", "started", "completed", "archived"]);
 export const DECISIONS = new Set(["undecided", "do_now", "not_now"]);
 export const ENRICHMENTS = new Set(["none", "partial", "delegated", "complete", "failed"]);
 const ORIGINS = new Set(["user", "ai_inferred", "ai_research"]);
 const CONFIRMATIONS = new Set(["confirmed", "unconfirmed"]);
+const FOCUS_KINDS = new Set([
+  "reason_for", "reason_against", "background", "priority", "constraint",
+  "desired_outcome", "completion_condition", "assistance", "summary",
+]);
+const DIALOGUE_TOPICS = new Set([
+  "background", "motivation", "priority", "constraint", "desired_outcome",
+  "completion_condition", "blocker", "assistance",
+]);
 const TRACKING_PARAMS = new Set(["fbclid", "gclid", "dclid", "msclkid", "mc_cid", "mc_eid"]);
 const SECRET_PARAMS = new Set([
   "access_token", "api_key", "apikey", "auth", "authorization", "signature", "sig", "token",
@@ -36,6 +44,20 @@ function jsonObject(value) {
 
 function stringArray(value) {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
+}
+
+function enumArray(value, allowed) {
+  return [...new Set(stringArray(value).filter((item) => allowed.has(item)))];
+}
+
+function normalizeActiveFocus(value) {
+  const focus = jsonObject(value);
+  if (!focus) return null;
+  const kind = enumValue(focus.kind, FOCUS_KINDS, null);
+  const reasonId = stringOrNull(focus.reason_id);
+  const summary = stringOrNull(focus.summary);
+  if (!kind && !reasonId && !summary) return null;
+  return { kind, reason_id: reasonId, summary };
 }
 
 export function resolveDataRoot({ env = process.env, platform = process.platform, home = os.homedir() } = {}) {
@@ -196,6 +218,9 @@ function normalizeRecord(input, { id, revision, createdAt, timestamp } = {}) {
     enrichment: enumValue(data.enrichment, ENRICHMENTS, "none"),
     interpretation: {
       goal: stringOrNull(interpretation.goal),
+      current_situation: stringOrNull(interpretation.current_situation),
+      desired_outcome: stringOrNull(interpretation.desired_outcome),
+      completion_conditions: stringArray(interpretation.completion_conditions),
       execution_prompt: stringOrNull(interpretation.execution_prompt),
     },
     reasons_for: Array.isArray(data.reasons_for)
@@ -210,7 +235,12 @@ function normalizeRecord(input, { id, revision, createdAt, timestamp } = {}) {
     related_urls: normalizeUrls(data.related_urls, timestamp),
     notes: Array.isArray(data.notes) ? data.notes.map((note) => normalizeNote(note, timestamp)) : [],
     project_refs: Array.isArray(data.project_refs) ? data.project_refs.map(normalizeProject) : [],
-    dialogue: { asked_reason_for: dialogue.asked_reason_for === true },
+    dialogue: {
+      asked_reason_for: dialogue.asked_reason_for === true,
+      active_focus: normalizeActiveFocus(dialogue.active_focus),
+      covered_topics: enumArray(dialogue.covered_topics, DIALOGUE_TOPICS),
+      open_threads: stringArray(dialogue.open_threads),
+    },
     delegation: jsonObject(data.delegation),
     execution: jsonObject(data.execution),
     events: Array.isArray(data.events) ? data.events.map((event) => normalizeEvent(event, timestamp)) : [],

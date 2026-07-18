@@ -11,6 +11,7 @@ import {
   listConversations,
   normalizeUrlEntry,
   resolveDataRoot,
+  SCHEMA_VERSION,
   updateConversation,
 } from "../.agents/skills/wnn/scripts/store.mjs";
 
@@ -54,6 +55,7 @@ test("uses the explicit data directory override", () => {
 test("creates an incomplete conversation and updates it once per turn", async () => {
   await withStore(async () => {
     const created = await createConversation({ task_text: "Taskmasterを試す" });
+    assert.equal(created.schema_version, SCHEMA_VERSION);
     assert.equal(created.revision, 1);
     assert.equal(created.conversation_state, "active");
     assert.deepEqual(created.reasons_for, []);
@@ -86,6 +88,52 @@ test("creates an incomplete conversation and updates it once per turn", async ()
     assert.equal(updated.reasons_for[0].origin, "user");
     assert.equal(updated.why_not_now.reasons[0].solutions[0], "最小構成だけ試す");
     assert.equal(updated.events.at(-1).type, "decision_updated");
+  });
+});
+
+test("stores structured dialogue context without retaining private reasoning", async () => {
+  await withStore(async () => {
+    const created = await createConversation({
+      task_text: "導入を検討する",
+      interpretation: {
+        goal: "導入の可否を判断する",
+        current_situation: "優先度と完了条件が不明",
+        desired_outcome: "小さく試せる範囲を決める",
+        completion_conditions: ["対応環境が分かる", "試行範囲を決める"],
+        hidden_reasoning: "保存してはいけない",
+      },
+      dialogue: {
+        asked_reason_for: true,
+        active_focus: {
+          kind: "constraint",
+          reason_id: "against_current-priority",
+          summary: "優先度が低いため開始条件を整理している",
+        },
+        covered_topics: ["priority", "constraint", "priority", "unknown"],
+        open_threads: ["次に見直す条件を決める"],
+        private_reasoning: "保存してはいけない",
+      },
+    });
+
+    assert.equal(created.schema_version, 2);
+    assert.equal(created.interpretation.current_situation, "優先度と完了条件が不明");
+    assert.deepEqual(created.interpretation.completion_conditions, ["対応環境が分かる", "試行範囲を決める"]);
+    assert.equal("hidden_reasoning" in created.interpretation, false);
+    assert.deepEqual(created.dialogue.covered_topics, ["priority", "constraint"]);
+    assert.equal(created.dialogue.active_focus.kind, "constraint");
+    assert.equal("private_reasoning" in created.dialogue, false);
+
+    const updated = await updateConversation(created.conversation_id, {
+      patch: {
+        dialogue: {
+          active_focus: { kind: "completion_condition", reason_id: null, summary: "最小の完了条件を確認する" },
+          open_threads: ["最小の完了条件を確認する"],
+        },
+      },
+    }, { expectedRevision: created.revision });
+
+    assert.equal(updated.dialogue.active_focus.kind, "completion_condition");
+    assert.deepEqual(updated.dialogue.open_threads, ["最小の完了条件を確認する"]);
   });
 });
 
