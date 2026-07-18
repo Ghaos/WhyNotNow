@@ -19,10 +19,10 @@ Only begin the separate `Do it now` flow after the user explicitly selects
 **Do it now** in the action form or clearly asks to start that saved
 conversation. Do not infer that choice from the task text, urgency, or a
 lack of stated reasons. Read-only research is permitted only after the user
-selects the research follow-up. It may read the saved record, relevant public
-information, and a local project only when that project is already recorded or
-is clearly related to the task. It must never implement the task, edit project
-files, or change external state.
+accepts a concrete assistance offer. It may read the saved record, relevant
+public information, and a local project only when that project is already
+recorded or is clearly related to the task. It must never implement the task,
+edit project files, or change external state.
 
 Use the `why-not-now` MCP server for every conversation read and write. The server owns JSON storage and its queue; do not run `scripts/whynotnow.mjs` in a user conversation. Read [schema.md](references/schema.md) before constructing a create or update payload.
 
@@ -35,7 +35,7 @@ Queue persistence before replying to the user:
 3. Treat its successful acceptance as sufficient to reply; it writes JSON in the background.
 4. Only wait for the queue when the next operation needs a consistent saved record (details, list, forms, archive, or starting a task).
 
-On the first turn, create a minimal record even when only a few words are known. On later turns, use the MCP context operation to load the current displayable fields and update it with the returned revision to detect concurrent edits. Allow empty arrays, nulls, partial reason trees, and unanswered questions.
+On the first turn, create a minimal record even when only a few words are known. On later turns, use the MCP context operation to load the current displayable fields and update it with the returned revision to detect concurrent edits. Update the current situation, desired outcome, completion conditions, active focus, covered topics, and open threads when the user provides them. Allow empty arrays, nulls, partial reason trees, and unanswered questions.
 
 Do not mention successful saving, loading, JSON, paths, IDs, or revisions. If the MCP server reports a previously failed queued write, say clearly and concisely that the latest content may not have been saved. Do not expose implementation details.
 
@@ -56,20 +56,20 @@ For a new memo:
    using the created record's `conversation_id` and `revision`. The form offers
    exactly **Do it now** and **Why not now?**.
 6. Continue from the accepted action and returned revision. For **Why not now?**,
-   ask one concise question about why the task should not be done now. If the
-   form is cancelled, leave the record `active` with `decision: undecided`, then
-   call `choose_research` with `context: cancelled_action`. If the MCP tool is
-   unavailable, present the same two actions as concise plain text and persist
-   the user's next reply through the CLI.
+   ask one concise question that invites the user to describe what is making
+   the task unsuitable now. If the form is cancelled, leave the record `active`
+   with `decision: undecided`, then call `choose_cancel_followup`. If the MCP
+   tool is unavailable, present the same two actions as concise plain text and
+   persist the user's next reply through the CLI.
 
 For example, `$wnn WhyNotNowの動作確認をする` must create an undecided record
 whose `task_text` is `WhyNotNowの動作確認をする`, then invoke the action form.
 It must not start the verification before the user explicitly chooses **Do it
 now**.
 
-## Explore Reasons
+## Explore the Current Thread
 
-### Reasons to do it
+### Preserve value
 
 Actively notice statements such as "This could be useful," "This looks interesting," "This seems trustworthy," or other evidence suggesting future value.
 
@@ -78,19 +78,49 @@ Actively notice statements such as "This could be useful," "This looks interesti
 - Ask at most once what makes the task worthwhile when no reason is present. Record that the question was asked even if the user exits without answering.
 - Do not score, rank, or cancel out positive and negative reasons.
 
-### Reasons not to do it now
+### Choose the next move
 
-Build a flexible reason tree. For each node, record the reason, whether it appears solvable now, a minimal solution when one exists, and child reasons when further breakdown is useful.
+When the user responds, first save the confirmed reason, background, goal,
+constraint, or expectation that they supplied. Build a flexible reason tree
+when it helps, but do not treat it as a checklist. Then respond to the latest
+point and choose exactly one move:
 
-When the user answers the **Why not now?** question:
+- **Assist** when a specific obstacle has a small, credible, read-only next
+  step. State the obstacle, the smallest scope, and the expected result or
+  limitation. Call `offer_assistance` with the saved blocker ID and those three
+  fields. Do not call it merely because a reason was recorded.
+- **Deepen** when the latest point is ambiguous or needs one important
+  condition. Ask one concise question about that same point.
+- **Connect** when the latest point naturally implies a related background,
+  priority, desired outcome, or constraint. State the connection and ask one
+  related question.
+- **Summarize** when the current thread is understood or no useful question
+  remains. Reflect the understanding and offer a decision or a user-led
+  continuation.
 
-1. Save the reason as confirmed user information before responding.
-2. State the smallest credible path toward resolving it when one exists; otherwise say that it is not yet clearly solvable.
-3. Call `choose_research` with `context: reason` and the latest revision. This form offers **research a solution** and **keep deferred**.
-4. For **keep deferred**, leave the record active and continue with the next concise reason or constraint question.
-5. For **research**, choose the smallest relevant read-only target set from the saved record, public information, and an already-related or clearly related local project. If no target can be selected safely, ask the user before researching.
-6. Save new evidence as `ai_research` reasons, new normalized URLs as `ai_research` URLs, and a short `ai_research` note. Set `enrichment` to `partial` when new information was found, or `complete` when the selected research found none.
-7. If research produced new information, first present the findings to the user in a normal assistant response, including the smallest useful evidence and any relevant limitation. Only after that response has been delivered, call `choose_action` again with the latest revision. Never open the action form in the same tool-only sequence that saved the research: the user must see the findings before being asked to choose. If research produced none, say so and continue the Why not now dialogue instead of re-showing the action form.
+Do not use these moves as a fixed sequence. Never ask “Are there any other
+reasons?” or an equivalent generic list-building question. Tie every follow-up
+to the immediately preceding user statement, ask at most one central question,
+and do not revisit a topic that is already understood unless new information
+makes it relevant.
+
+### Assistance and research
+
+If `offer_assistance` is accepted, choose the smallest relevant read-only
+target set from the saved record, public information, and an already-related
+or clearly related local project. If no safe target can be selected, ask before
+researching. Save new evidence as `ai_research` reasons, new normalized URLs
+as `ai_research` URLs, and a short `ai_research` note. Set `enrichment` to
+`partial` when new information was found, or `complete` when the selected
+research found none.
+
+First present research findings in a normal assistant response, including the
+smallest useful evidence and any relevant limitation. Only in a later turn may
+you call `choose_action` if the obstacle is resolved. If the obstacle remains,
+continue from the current thread using the move-selection policy. If assistance
+is declined or cancelled, retain the current context and choose the next
+natural move; do not automatically ask for another reason or end the
+conversation.
 
 ## Handle User Choices
 
@@ -108,12 +138,12 @@ that a selection was saved when the tool returns an error.
 
 ### Cancelled Action Form
 
-After an initial action-form cancellation, `choose_research` asks whether to do
-additional research or end. For **research**, use the task text and existing
-record to select a minimal read-only target set, then follow the findings
-persistence and re-prompt rules above. For **end**, the MCP tool saves
-`conversation_state: ended` and an `ended` event; do not write a duplicate event.
-If this follow-up form is cancelled, leave the record active and unchanged.
+After an initial action-form cancellation, `choose_cancel_followup` asks
+whether to do additional research or end. For **research**, use the task text
+and existing record to select a minimal read-only target set, then follow the
+findings rules above. For **end**, the MCP tool saves `conversation_state:
+ended` and an `ended` event; do not write a duplicate event. If this follow-up
+form is cancelled, leave the record active and unchanged.
 
 ### Do it now
 

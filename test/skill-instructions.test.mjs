@@ -5,7 +5,7 @@ import test from "node:test";
 
 const skillPath = path.resolve(".agents/skills/wnn/SKILL.md");
 
-test("WhyNotNow starts deferred and uses the reason-led research flow", async () => {
+test("WhyNotNow starts deferred and uses a contextual dialogue flow", async () => {
   const skill = await fs.readFile(skillPath, "utf8");
 
   assert.match(skill, /^name: wnn$/m);
@@ -17,17 +17,23 @@ test("WhyNotNow starts deferred and uses the reason-led research flow", async ()
   assert.match(skill, /Do not append a\s+`decision_updated` event before the user selects an action/);
   assert.match(skill, /Call the `choose_action` tool[\s\S]*immediately/);
   assert.match(skill, /exactly \*\*Do it now\*\* and \*\*Why not now\?\*\*/);
-  assert.match(skill, /Save the reason as confirmed user information before responding/);
-  assert.match(skill, /smallest credible path toward resolving it/);
-  assert.match(skill, /Call `choose_research` with `context: reason`/);
-  assert.match(skill, /local project only when that project is already recorded or\s+is clearly related/);
-  assert.match(skill, /If research produced new information, first present the findings/);
-  assert.match(skill, /first present the findings to the user in a normal assistant response/);
-  assert.match(skill, /Only after that response has been delivered, call `choose_action` again/);
-  assert.match(skill, /must see the findings before being asked to choose/);
-  assert.match(skill, /If research produced none, say so and continue/);
-  assert.match(skill, /If the\s+form is cancelled, leave the record `active` with `decision: undecided`, then\s+call `choose_research`/);
-  assert.match(skill, /For \*\*end\*\*, the MCP tool saves\s+`conversation_state: ended` and an `ended` event/);
+  assert.match(skill, /first save the confirmed reason, background, goal,/);
+  assert.match(skill, /choose exactly one move/);
+  assert.match(skill, /\*\*Assist\*\*/);
+  assert.match(skill, /\*\*Deepen\*\*/);
+  assert.match(skill, /\*\*Connect\*\*/);
+  assert.match(skill, /\*\*Summarize\*\*/);
+  assert.match(skill, /Call `offer_assistance` with the saved blocker ID/);
+  assert.doesNotMatch(skill, /Call `choose_research` with `context: reason`/);
+  assert.match(skill, /Never ask “Are there any other\s+reasons\?”/);
+  assert.match(skill, /ask at most one central question/);
+  assert.match(skill, /local project only when that project is already\s+recorded or is clearly related/);
+  assert.match(skill, /First present research findings in a normal assistant response/);
+  assert.match(skill, /Only in a later turn may\s+you call `choose_action`/);
+  assert.match(skill, /If the obstacle remains,\s+continue from the current thread/);
+  assert.match(skill, /If assistance\s+is declined or cancelled, retain the current context/);
+  assert.match(skill, /If the form is cancelled, leave the record `active`\s+with `decision: undecided`, then call `choose_cancel_followup`/);
+  assert.match(skill, /For \*\*end\*\*, the MCP tool saves\s+`conversation_state:\s+ended` and an `ended` event/);
   assert.doesNotMatch(skill, /Delegate interpretation and research to AI/);
   assert.match(skill, /do not run `scripts\/whynotnow\.mjs` in a user conversation/);
   assert.match(skill, /Do not mention successful saving, loading, JSON, paths, IDs, or revisions/);
