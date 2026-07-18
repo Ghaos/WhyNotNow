@@ -42,11 +42,13 @@ function summary(record) {
     lifecycle: record.lifecycle,
     decision: record.decision,
     enrichment: record.enrichment,
+    interpretation: record.interpretation,
     reasons_for: record.reasons_for,
     why_not_now: record.why_not_now,
     related_urls: record.related_urls,
     notes: record.notes,
     project_refs: record.project_refs,
+    dialogue: record.dialogue,
   };
 }
 
@@ -237,38 +239,43 @@ server.registerTool(
 );
 
 server.registerTool(
-  "choose_research",
+  "offer_assistance",
   {
-    title: "Choose a WhyNotNow research follow-up",
-    description: "Confirm research after a reason is recorded, or after the action form is cancelled. Saves the follow-up choice.",
+    title: "Offer bounded WhyNotNow assistance",
+    description: "Ask for consent to investigate one concrete blocker with a stated read-only scope.",
     inputSchema: {
       conversation_id: z.string().min(1).describe("Existing WhyNotNow conversation ID"),
       expected_revision: z.number().int().positive().describe("Current conversation revision"),
-      context: z.enum(["reason", "cancelled_action"]).describe("Why this follow-up is being shown"),
+      reason_id: z.string().min(1).max(200).describe("Saved blocker this offer addresses"),
+      problem_summary: z.string().min(1).max(1000).describe("Concrete blocker to address"),
+      proposed_scope: z.string().min(1).max(1000).describe("Smallest read-only investigation to perform"),
+      expected_result: z.string().min(1).max(1000).describe("What the user will receive, including any limitation"),
     },
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
   },
-  async ({ conversation_id: conversationId, expected_revision: expectedRevision, context }) => {
+  async ({
+    conversation_id: conversationId,
+    expected_revision: expectedRevision,
+    reason_id: reasonId,
+    problem_summary: problemSummary,
+    proposed_scope: proposedScope,
+    expected_result: expectedResult,
+  }) => {
     try {
       await persistence.flush(conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
-    const cancelledAction = context === "cancelled_action";
     const result = await server.server.elicitInput({
       mode: "form",
-      message: cancelledAction
-        ? "Would you like me to do additional research before ending this conversation?"
-        : "Would you like me to research a path toward resolving this reason?",
+      message: `${problemSummary}\n\nI can investigate this by: ${proposedScope}\n\nYou will get: ${expectedResult}\n\nWould you like me to do that now?`,
       requestedSchema: {
         type: "object",
         properties: {
           action: {
             type: "string",
-            title: "Research Follow-up",
-            oneOf: cancelledAction
-              ? [{ const: "research", title: "do additional research" }, { const: "end", title: "end" }]
-              : [{ const: "research", title: "research a solution" }, { const: "defer", title: "keep deferred" }],
+            title: "Assistance",
+            oneOf: [{ const: "research", title: "investigate now" }, { const: "decline", title: "not now" }],
           },
         },
         required: ["action"],
@@ -277,26 +284,83 @@ server.registerTool(
 
     if (result.action !== "accept" || !result.content) {
       return {
-        structuredContent: { action: "cancelled", context, conversation_id: conversationId, revision: expectedRevision },
+        structuredContent: { action: "cancelled", conversation_id: conversationId, revision: expectedRevision },
         content: [{ type: "text", text: "cancelled" }],
       };
     }
 
     const { action } = result.content;
-    const updates = cancelledAction
-      ? {
-        research: { patch: {}, event: { type: "research_requested", data: { context } } },
-        end: { patch: { conversation_state: "ended" }, event: { type: "ended", data: {} } },
-      }
-      : {
-        research: { patch: {}, event: { type: "research_requested", data: { context } } },
-        defer: { patch: {}, event: { type: "research_deferred", data: { context } } },
-      };
+    const eventData = {
+      reason_id: reasonId,
+      problem_summary: problemSummary,
+      proposed_scope: proposedScope,
+      expected_result: expectedResult,
+    };
+    const updates = {
+      research: { patch: {}, event: { type: "assistance_accepted", data: eventData } },
+      decline: { patch: {}, event: { type: "assistance_declined", data: eventData } },
+    };
     const update = updates[action];
     if (!update) return { isError: true, content: [{ type: "text", text: `Unhandled selection: ${action}` }] };
 
     try {
       const structuredContent = saveSelection(conversationId, expectedRevision, { action, ...update });
+      return silent(structuredContent, conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
+
+server.registerTool(
+  "choose_cancel_followup",
+  {
+    title: "Choose a WhyNotNow cancellation follow-up",
+    description: "Offer additional read-only research or end after the initial action form is cancelled.",
+    inputSchema: {
+      conversation_id: z.string().min(1).describe("Existing WhyNotNow conversation ID"),
+      expected_revision: z.number().int().positive().describe("Current conversation revision"),
+    },
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
+    try {
+      await persistence.flush(conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+    const result = await server.server.elicitInput({
+      mode: "form",
+      message: "Would you like me to do additional research before ending this conversation?",
+      requestedSchema: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            title: "Next Step",
+            oneOf: [{ const: "research", title: "do additional research" }, { const: "end", title: "end" }],
+          },
+        },
+        required: ["action"],
+      },
+    });
+
+    if (result.action !== "accept" || !result.content) {
+      return {
+        structuredContent: { action: "cancelled", conversation_id: conversationId, revision: expectedRevision },
+        content: [{ type: "text", text: "cancelled" }],
+      };
+    }
+
+    const updates = {
+      research: { patch: {}, event: { type: "research_requested", data: { context: "cancelled_action" } } },
+      end: { patch: { conversation_state: "ended" }, event: { type: "ended", data: {} } },
+    };
+    const update = updates[result.content.action];
+    if (!update) return { isError: true, content: [{ type: "text", text: `Unhandled selection: ${result.content.action}` }] };
+
+    try {
+      const structuredContent = saveSelection(conversationId, expectedRevision, { action: result.content.action, ...update });
       return silent(structuredContent, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };

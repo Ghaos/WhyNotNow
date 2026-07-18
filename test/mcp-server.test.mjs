@@ -10,7 +10,7 @@ import { createConversation, getConversation } from "../.agents/skills/wnn/scrip
 
 const serverPath = path.resolve(process.env.WHYNOTNOW_MCP_SERVER_PATH ?? "server/index.mjs");
 
-test("MCP action and research follow-ups persist choices over stdio", async (t) => {
+test("MCP action, assistance, and cancellation follow-ups persist choices over stdio", async (t) => {
   const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "whynotnow-mcp-test-"));
   const storeOptions = { env: { WHYNOTNOW_HOME: dataRoot } };
   const conversation = await createConversation({ task_text: "Form elicitationを試す" }, storeOptions);
@@ -18,6 +18,7 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   const responses = [
     { action: "accept", content: { action: "why_not_now", note: "まず理由を整理する" } },
     { action: "accept", content: { action: "research" } },
+    { action: "accept", content: { action: "decline" } },
     { action: "decline" },
     { action: "accept", content: { action: "end" } },
     { action: "accept", content: { action: "research" } },
@@ -40,7 +41,7 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   const tools = await client.listTools();
   assert.deepEqual(tools.tools.map((tool) => tool.name), [
     "create_conversation", "update_conversation", "get_conversation_context", "list_conversation_summaries",
-    "archive_conversation", "ping", "choose_action", "choose_research",
+    "archive_conversation", "ping", "choose_action", "offer_assistance", "choose_cancel_followup",
   ]);
   const result = await client.callTool({ name: "ping", arguments: {} });
   assert.deepEqual(result.content, [{ type: "text", text: "pong" }]);
@@ -53,10 +54,17 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   assert.equal(choiceResult.structuredContent.revision, 2);
   assert.deepEqual(choiceResult.content, []);
 
-  const researchResult = await client.callTool({ name: "choose_research", arguments: {
-    conversation_id: conversation.conversation_id, expected_revision: choiceResult.structuredContent.revision, context: "reason",
+  const researchResult = await client.callTool({ name: "offer_assistance", arguments: {
+    conversation_id: conversation.conversation_id,
+    expected_revision: choiceResult.structuredContent.revision,
+    reason_id: "against_compatibility",
+    problem_summary: "対応環境が分からない",
+    proposed_scope: "公式の互換性要件だけを確認する",
+    expected_result: "対応可否と不足している条件を短く整理する",
   } });
   assert.equal(requests[1].requestedSchema.properties.action.oneOf.length, 2);
+  assert.match(requests[1].message, /対応環境が分からない/);
+  assert.match(requests[1].message, /公式の互換性要件だけを確認する/);
   assert.equal(researchResult.structuredContent.action, "research");
   assert.equal(researchResult.structuredContent.revision, 3);
   assert.deepEqual(researchResult.content, []);
@@ -66,7 +74,24 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   assert.equal(contextResult.structuredContent.conversation.decision, "not_now");
   assert.equal(contextResult.structuredContent.conversation.notes.at(-1).text, "まず理由を整理する");
   const saved = await getConversation(conversation.conversation_id, storeOptions);
-  assert.equal(saved.events.at(-1).type, "research_requested");
+  assert.equal(saved.events.at(-1).type, "assistance_accepted");
+  assert.equal(saved.events.at(-1).data.reason_id, "against_compatibility");
+
+  const declinedResult = await client.callTool({ name: "offer_assistance", arguments: {
+    conversation_id: conversation.conversation_id,
+    expected_revision: researchResult.structuredContent.revision,
+    reason_id: "against_compatibility",
+    problem_summary: "対応環境が分からない",
+    proposed_scope: "公式の互換性要件だけを確認する",
+    expected_result: "対応可否と不足している条件を短く整理する",
+  } });
+  assert.equal(declinedResult.structuredContent.action, "decline");
+  await client.callTool({ name: "get_conversation_context", arguments: {
+    conversation_id: conversation.conversation_id,
+  } });
+  const declined = await getConversation(conversation.conversation_id, storeOptions);
+  assert.equal(declined.events.at(-1).type, "assistance_declined");
+  assert.equal(declined.conversation_state, "active");
 
   const cancelledResult = await client.callTool({ name: "choose_action", arguments: {
     conversation_id: cancelledConversation.conversation_id, expected_revision: cancelledConversation.revision,
@@ -79,8 +104,8 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   assert.equal(unchanged.conversation_state, "active");
   assert.equal(unchanged.decision, "undecided");
 
-  const endResult = await client.callTool({ name: "choose_research", arguments: {
-    conversation_id: cancelledConversation.conversation_id, expected_revision: cancelledConversation.revision, context: "cancelled_action",
+  const endResult = await client.callTool({ name: "choose_cancel_followup", arguments: {
+    conversation_id: cancelledConversation.conversation_id, expected_revision: cancelledConversation.revision,
   } });
   assert.equal(endResult.structuredContent.action, "end");
   assert.equal(endResult.structuredContent.conversation_state, "ended");
@@ -90,8 +115,13 @@ test("MCP action and research follow-ups persist choices over stdio", async (t) 
   const ended = await getConversation(cancelledConversation.conversation_id, storeOptions);
   assert.equal(ended.events.at(-1).type, "ended");
 
-  const staleResult = await client.callTool({ name: "choose_research", arguments: {
-    conversation_id: conversation.conversation_id, expected_revision: 1, context: "reason",
+  const staleResult = await client.callTool({ name: "offer_assistance", arguments: {
+    conversation_id: conversation.conversation_id,
+    expected_revision: 1,
+    reason_id: "against_compatibility",
+    problem_summary: "対応環境が分からない",
+    proposed_scope: "公式の互換性要件だけを確認する",
+    expected_result: "対応可否と不足している条件を短く整理する",
   } });
   assert.equal(staleResult.isError, true);
   assert.match(staleResult.content[0].text, /changed elsewhere/);
