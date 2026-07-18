@@ -6,8 +6,10 @@ description: Display saved WhyNotNow conversations. Use only when the user expli
 # Why Not Now List
 
 Call `list_conversation_summaries` from the `why-not-now` MCP server with its
-default arguments. It returns the current non-archived conversations in latest
-update order.
+default arguments. It returns the current open, non-executing conversations in
+latest update order. This skill is a fallback when the local WhyNotNow inbox at
+`http://127.0.0.1:49321/` is not convenient or available; the inbox is the
+primary way to scan, complete, and restore saved items.
 
 Present the returned compact summaries in a concise, scannable list. Include
 the task title or text, current decision or state when useful, and the latest

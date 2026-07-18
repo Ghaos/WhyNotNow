@@ -1,8 +1,8 @@
 # WhyNotNow
 
-WhyNotNow is a Codex skill for capturing a rough task without immediately
-committing to it. It helps you understand an idea's value, context, and the
-conditions under which it becomes worth doing.
+WhyNotNow is a deferred-work inbox with a Codex conversation workbench. Capture
+a rough task without immediately committing to it, explore why it is not right
+for now, then review or complete it without waiting for another AI response.
 
 ## Get started
 
@@ -24,6 +24,21 @@ You can include why the task matters, known constraints, and relevant links in
 your memo. Add more context at any time; WhyNotNow follows the conversation
 rather than asking you to list reasons.
 
+## Open the inbox
+
+While Codex and the WhyNotNow plugin are running, open
+[http://127.0.0.1:49321/](http://127.0.0.1:49321/) in a browser. The inbox
+updates automatically and shows each open item with its current blocker and
+latest update.
+
+- Check an item to complete it without an AI round trip.
+- Switch to completed items and uncheck one to restore it.
+- Choose **Codexで見直す** to return to the source conversation when known, or
+  open a new Codex task that safely resumes the saved item.
+
+The inbox is the primary place to scan and close deferred items. Codex remains
+the place to capture, discuss, edit, research, start, and archive them.
+
 ## What to expect
 
 WhyNotNow asks one connected question at a time. It does not mechanically ask
@@ -34,9 +49,10 @@ now**.
 
 ## Return to an idea
 
-Use `$wnn-list` to show saved WhyNotNow conversations. Use `$wnn` to show,
-add to, edit, revisit, start, or archive an individual saved conversation.
-Each idea remains separate, so unrelated tasks do not get mixed together.
+Use `$wnn-list` as a fallback when the browser inbox is unavailable. Use `$wnn`
+to show, add to, edit, revisit, complete, restore, start, or archive an
+individual saved conversation. Each idea remains separate, so unrelated tasks
+do not get mixed together.
 
 ## Privacy
 

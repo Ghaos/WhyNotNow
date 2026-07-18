@@ -7,6 +7,12 @@ The goal is not to collect a list of reasons.  Each response should deepen the
 user's understanding of the task, its context, and the conditions under which
 it becomes worth doing.
 
+The local browser inbox is the canonical review surface for saved items. It
+supports scanning, completion, restoration, and returning to a Codex
+conversation without an AI round trip for routine state changes. Codex remains
+the workbench for capture, interpretation, research, editing, starting, and
+archival.
+
 The conversation may surface a small, bounded obstacle that the assistant can
 help resolve.  Offer that help only when it is concrete and useful; do not
 turn every reason into a research request.

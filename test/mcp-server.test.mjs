@@ -25,7 +25,7 @@ test("MCP action, plain-text assistance choices, and cancellation follow-ups per
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [serverPath],
-    env: { ...getDefaultEnvironment(), WHYNOTNOW_HOME: dataRoot },
+    env: { ...getDefaultEnvironment(), WHYNOTNOW_HOME: dataRoot, WHYNOTNOW_DASHBOARD_PORT: "0" },
   });
 
   client.setRequestHandler(ElicitRequestSchema, async (request) => {
@@ -38,7 +38,8 @@ test("MCP action, plain-text assistance choices, and cancellation follow-ups per
   const tools = await client.listTools();
   assert.deepEqual(tools.tools.map((tool) => tool.name), [
     "create_conversation", "update_conversation", "get_conversation_context", "list_conversation_summaries",
-    "archive_conversation", "ping", "choose_action", "offer_assistance", "choose_cancel_followup",
+    "complete_conversation", "reopen_conversation", "archive_conversation", "ping", "choose_action",
+    "offer_assistance", "choose_cancel_followup",
   ]);
   const result = await client.callTool({ name: "ping", arguments: {} });
   assert.deepEqual(result.content, [{ type: "text", text: "pong" }]);
@@ -68,6 +69,9 @@ test("MCP action, plain-text assistance choices, and cancellation follow-ups per
     conversation_id: conversation.conversation_id,
   } });
   assert.equal(contextResult.structuredContent.conversation.decision, "not_now");
+  assert.equal(contextResult.structuredContent.conversation.revision, 3);
+  assert.equal(contextResult.structuredContent.conversation.conversation_id, conversation.conversation_id);
+  assert.match(contextResult.structuredContent.conversation.updated_at, /^\d{4}-/);
   assert.equal(contextResult.structuredContent.conversation.notes.at(-1).text, "まず理由を整理する");
   const saved = await getConversation(conversation.conversation_id, storeOptions);
   assert.equal(saved.events.at(-1).type, "assistance_accepted");
@@ -89,6 +93,24 @@ test("MCP action, plain-text assistance choices, and cancellation follow-ups per
   const declined = await getConversation(conversation.conversation_id, storeOptions);
   assert.equal(declined.events.at(-1).type, "assistance_declined");
   assert.equal(declined.conversation_state, "active");
+
+  const completedResult = await client.callTool({ name: "complete_conversation", arguments: {
+    conversation_id: conversation.conversation_id,
+    expected_revision: declinedResult.structuredContent.revision,
+  } });
+  assert.equal(completedResult.structuredContent.revision, 5);
+  await client.callTool({ name: "get_conversation_context", arguments: { conversation_id: conversation.conversation_id } });
+  assert.equal((await getConversation(conversation.conversation_id, storeOptions)).lifecycle, "completed");
+
+  const reopenedResult = await client.callTool({ name: "reopen_conversation", arguments: {
+    conversation_id: conversation.conversation_id,
+    expected_revision: completedResult.structuredContent.revision,
+  } });
+  assert.equal(reopenedResult.structuredContent.revision, 6);
+  await client.callTool({ name: "get_conversation_context", arguments: { conversation_id: conversation.conversation_id } });
+  const reopened = await getConversation(conversation.conversation_id, storeOptions);
+  assert.equal(reopened.lifecycle, "open");
+  assert.equal(reopened.decision, "not_now");
 
   const cancelledResult = await client.callTool({ name: "choose_action", arguments: {
     conversation_id: cancelledConversation.conversation_id, expected_revision: cancelledConversation.revision,
@@ -131,7 +153,7 @@ test("MCP persistence operations hide raw records and flush queued writes before
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [serverPath],
-    env: { ...getDefaultEnvironment(), WHYNOTNOW_HOME: dataRoot },
+    env: { ...getDefaultEnvironment(), WHYNOTNOW_HOME: dataRoot, WHYNOTNOW_DASHBOARD_PORT: "0" },
   });
   t.after(async () => { await client.close(); await fs.rm(dataRoot, { recursive: true, force: true }); });
   await client.connect(transport);
@@ -146,5 +168,11 @@ test("MCP persistence operations hide raw records and flush queued writes before
   } });
   assert.deepEqual(context.content, []);
   assert.equal(context.structuredContent.conversation.task_text, "非表示で保存");
+  assert.equal(context.structuredContent.conversation.revision, 1);
   assert.equal("events" in context.structuredContent.conversation, false);
+
+  const listed = await client.callTool({ name: "list_conversation_summaries", arguments: {} });
+  assert.equal(listed.structuredContent.conversations.length, 1);
+  assert.equal(listed.structuredContent.conversations[0].revision, 1);
+  assert.equal(listed.structuredContent.conversations[0].task_text, "非表示で保存");
 });

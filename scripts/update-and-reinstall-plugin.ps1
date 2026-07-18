@@ -61,9 +61,12 @@ try {
     }
 
     $PluginJson = Get-Content -Raw -LiteralPath $PluginManifest | ConvertFrom-Json
+    $PluginJson.description = "Capture deferred work in Codex and review it from a local inbox."
+    $PluginJson.interface.shortDescription = "Discuss deferred work and review it in a local inbox."
+    $PluginJson.interface.longDescription = "A deferred-work inbox with a Codex conversation workbench. Capture and explore why not now in Codex, then review, complete, restore, or revisit saved items from a local browser view."
     $PluginJson.interface.defaultPrompt = @(
         'Use $wnn to capture a task and decide what to do next.',
-        'Use $wnn-list to show my saved WhyNotNow conversations.',
+        'Open the WhyNotNow inbox at http://127.0.0.1:49321/.',
         "Revisit a saved WhyNotNow conversation."
     )
     [System.IO.File]::WriteAllText(

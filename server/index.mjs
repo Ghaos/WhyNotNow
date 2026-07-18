@@ -5,10 +5,12 @@ import { randomUUID } from "node:crypto";
 import {
   createConversation,
   getConversation,
+  lifecycleCommand,
   listConversations,
   updateConversation,
 } from "../.agents/skills/wnn/scripts/store.mjs";
 import { PersistenceQueue } from "./persistence.mjs";
+import { DASHBOARD_PORT, startDashboardServer } from "./dashboard.mjs";
 
 const server = new McpServer({
   name: "why-not-now",
@@ -36,6 +38,9 @@ function silent(structuredContent, conversationId) {
 
 function summary(record) {
   return {
+    conversation_id: record.conversation_id,
+    revision: record.revision,
+    updated_at: record.updated_at,
     title: record.title,
     task_text: record.task_text,
     conversation_state: record.conversation_state,
@@ -126,18 +131,55 @@ server.registerTool(
   {
     title: "List WhyNotNow conversations",
     description: "Flushes queued changes and returns compact conversation summaries.",
-    inputSchema: { include_archived: z.boolean().optional(), query: z.string().optional() },
+    inputSchema: {
+      view: z.enum(["open", "completed", "archived", "all"]).optional(),
+      query: z.string().optional(),
+    },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
   },
-  async ({ include_archived: includeArchived = false, query = "" }) => {
+  async ({ view = "open", query = "" }) => {
     try {
       await persistence.flushAll();
-      const result = await listConversations({ includeArchived, query });
+      const result = await listConversations({ view, query });
       return { structuredContent: { conversations: result.conversations }, content: [] };
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
   },
+);
+
+function registerLifecycleTool(name, action, title, description) {
+  server.registerTool(
+    name,
+    {
+      title,
+      description,
+      inputSchema: { conversation_id: z.string().min(1), expected_revision: z.number().int().positive() },
+      annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+    },
+    async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
+      try {
+        const queued = persistence.queueUpdate(conversationId, lifecycleCommand(action), expectedRevision);
+        return silent({ revision: queued.revision }, conversationId);
+      } catch (error) {
+        return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+      }
+    },
+  );
+}
+
+registerLifecycleTool(
+  "complete_conversation",
+  "complete",
+  "Complete a WhyNotNow conversation",
+  "Marks a deferred conversation as completed without showing storage details.",
+);
+
+registerLifecycleTool(
+  "reopen_conversation",
+  "reopen",
+  "Reopen a WhyNotNow conversation",
+  "Returns a completed conversation to the deferred inbox without showing storage details.",
 );
 
 server.registerTool(
@@ -347,4 +389,11 @@ server.registerTool(
 );
 
 const transport = new StdioServerTransport();
+const configuredDashboardPort = Number.parseInt(process.env.WHYNOTNOW_DASHBOARD_PORT ?? "", 10);
+await startDashboardServer({
+  persistence,
+  port: Number.isInteger(configuredDashboardPort) && configuredDashboardPort >= 0
+    ? configuredDashboardPort
+    : DASHBOARD_PORT,
+});
 await server.connect(transport);

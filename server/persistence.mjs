@@ -8,6 +8,7 @@ function retryable(work, delays) {
         return await work();
       } catch (error) {
         lastError = error;
+        if (error?.code === "REVISION_CONFLICT") break;
         if (attempt < delays.length - 1) await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
       }
     }
@@ -43,10 +44,15 @@ export class PersistenceQueue {
 
   queueUpdate(conversationId, input, expectedRevision) {
     const state = this.stateFor(conversationId);
+    const idle = !state.running && state.pending.length === 0;
     if (state.nextRevision !== undefined && expectedRevision !== state.nextRevision) {
-      const error = new Error(`Revision conflict: expected ${expectedRevision}, queued revision is ${state.nextRevision}`);
-      error.code = "REVISION_CONFLICT";
-      throw error;
+      if (idle && expectedRevision > state.nextRevision) {
+        state.nextRevision = expectedRevision;
+      } else {
+        const error = new Error(`Revision conflict: expected ${expectedRevision}, queued revision is ${state.nextRevision}`);
+        error.code = "REVISION_CONFLICT";
+        throw error;
+      }
     }
     state.nextRevision = expectedRevision;
     state.pending.push(() => this.update(conversationId, input, { expectedRevision }));
@@ -67,6 +73,10 @@ export class PersistenceQueue {
           state.failure = null;
         } catch (error) {
           state.failure = error;
+          if (error?.code === "REVISION_CONFLICT") {
+            state.pending = [];
+            state.nextRevision = undefined;
+          }
           return;
         }
       }
@@ -90,5 +100,12 @@ export class PersistenceQueue {
     if (!state?.failure || state.failureNotified) return false;
     state.failureNotified = true;
     return true;
+  }
+
+  clearFailure(conversationId) {
+    const state = this.states.get(conversationId);
+    if (!state) return;
+    state.failure = null;
+    state.failureNotified = false;
   }
 }

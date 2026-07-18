@@ -6,10 +6,12 @@ import path from "node:path";
 import test from "node:test";
 import {
   archiveConversation,
+  completeConversation,
   createConversation,
   getConversation,
   listConversations,
   normalizeUrlEntry,
+  reopenConversation,
   resolveDataRoot,
   SCHEMA_VERSION,
   updateConversation,
@@ -115,7 +117,7 @@ test("stores structured dialogue context without retaining private reasoning", a
       },
     });
 
-    assert.equal(created.schema_version, 2);
+    assert.equal(created.schema_version, 3);
     assert.equal(created.interpretation.current_situation, "優先度と完了条件が不明");
     assert.deepEqual(created.interpretation.completion_conditions, ["対応環境が分かる", "試行範囲を決める"]);
     assert.equal("hidden_reasoning" in created.interpretation, false);
@@ -153,9 +155,15 @@ test("overwrites editable text and discards unsupported transcript fields", asyn
   await withStore(async () => {
     const created = await createConversation({
       task_text: "最初の文面",
+      delegation: { destination: "unused" },
+      execution: { destination: "unused" },
+      last_processed_at: "2020-01-01T00:00:00.000Z",
       transcript: [{ role: "user", content: "保存してはいけない会話全文" }]
     });
     assert.equal("transcript" in created, false);
+    assert.equal("delegation" in created, false);
+    assert.equal("execution" in created, false);
+    assert.equal("last_processed_at" in created, false);
 
     const updated = await updateConversation(created.conversation_id, {
       patch: {
@@ -200,26 +208,61 @@ test("accepts JSON through the CLI and lists the saved conversation", async () =
     const created = JSON.parse(createdResult.stdout);
     assert.match(created.conversation_id, /^wnn_/);
 
-    const listResult = await runCli(["list"], { env });
+    const listResult = await runCli(["list", "--view", "open"], { env });
     const listed = JSON.parse(listResult.stdout);
     assert.equal(listed.conversations.length, 1);
     assert.equal(listed.conversations[0].task_text, "CLIから作成");
   });
 });
 
-test("lists summaries, archives records, and reports corrupt files", async () => {
+test("lists lifecycle views, transitions records, and reports unreadable files", async () => {
   await withStore(async (root) => {
     const first = await createConversation({ task_text: "表示する項目" });
     const second = await createConversation({ task_text: "隠す項目" });
     await archiveConversation(second.conversation_id);
+    const completed = await completeConversation(first.conversation_id, { expectedRevision: first.revision });
+    assert.equal(completed.lifecycle, "completed");
+    assert.equal(completed.conversation_state, "ended");
+    assert.equal(completed.events.at(-1).type, "completed");
+
+    const completedView = await listConversations({ view: "completed" });
+    assert.equal(completedView.conversations.length, 1);
+    assert.equal(completedView.conversations[0].revision, 2);
+
+    const reopened = await reopenConversation(first.conversation_id, { expectedRevision: completed.revision });
+    assert.equal(reopened.lifecycle, "open");
+    assert.equal(reopened.conversation_state, "active");
+    assert.equal(reopened.decision, "not_now");
+    assert.equal(reopened.events.at(-1).type, "reopened");
+
     await fs.writeFile(path.join(root, "conversations", "broken.json"), "{broken", "utf8");
+    await fs.writeFile(path.join(root, "conversations", "legacy.json"), JSON.stringify({ schema_version: 2 }), "utf8");
 
     const visible = await listConversations();
     assert.equal(visible.conversations.length, 1);
     assert.equal(visible.conversations[0].conversation_id, first.conversation_id);
-    assert.equal(visible.errors.length, 1);
+    assert.equal(visible.conversations[0].review_reason, null);
+    assert.equal(visible.errors.length, 2);
+    assert.deepEqual(
+      new Set(visible.errors.map((error) => error.code)),
+      new Set(["CORRUPT_RECORD", "UNSUPPORTED_SCHEMA"]),
+    );
 
-    const all = await listConversations({ includeArchived: true, query: "項目" });
+    const all = await listConversations({ view: "all", query: "項目" });
     assert.equal(all.conversations.length, 2);
+  });
+});
+
+test("rejects legacy schema records without migrating them", async () => {
+  await withStore(async (root) => {
+    const created = await createConversation({ task_text: "旧形式" });
+    const file = path.join(root, "conversations", `${created.conversation_id}.json`);
+    const legacy = JSON.parse(await fs.readFile(file, "utf8"));
+    legacy.schema_version = 2;
+    await fs.writeFile(file, JSON.stringify(legacy), "utf8");
+    await assert.rejects(
+      getConversation(created.conversation_id),
+      (error) => error.code === "UNSUPPORTED_SCHEMA",
+    );
   });
 });

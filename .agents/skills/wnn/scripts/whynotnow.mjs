@@ -37,7 +37,7 @@ function usage() {
   whynotnow.mjs create [--input payload.json]
   whynotnow.mjs get <conversation-id>
   whynotnow.mjs update <conversation-id> [--expected-revision n] [--input payload.json]
-  whynotnow.mjs list [--query text] [--include-archived]
+  whynotnow.mjs list [--view open|completed|archived|all] [--query text]
   whynotnow.mjs archive <conversation-id>
   whynotnow.mjs delete <conversation-id> --yes`;
 }
@@ -63,7 +63,7 @@ async function main() {
   }
   if (command === "list") {
     return output(await listConversations({
-      includeArchived: args.includes("--include-archived"),
+      view: flagValue(args, "--view") ?? "open",
       query: flagValue(args, "--query") ?? "",
     }));
   }

@@ -65,8 +65,8 @@ installation:
 
 The test suite uses `WHYNOTNOW_HOME` to isolate temporary data.
 
-The current conversation schema is version 2. Version 1 was never released,
-so the storage layer does not implement a version-1 migration path.
+The current conversation schema is version 3. Earlier development schemas were
+never released, so the storage layer does not implement migration paths.
 
 `scripts/whynotnow.mjs` is a development and recovery utility. It accepts
 create and update payloads from UTF-8 JSON input or standard input:

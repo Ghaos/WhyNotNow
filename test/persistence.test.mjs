@@ -44,3 +44,45 @@ test("retries a failed write and reports an unresolved failure once", async () =
   await queue.flush("wnn_retry");
   assert.equal(attempts, 4);
 });
+
+test("drops a revision conflict so the caller can refresh and continue", async () => {
+  let revision = 2;
+  const queue = new PersistenceQueue({
+    create: async () => {},
+    update: async (_id, _input, { expectedRevision }) => {
+      if (expectedRevision !== revision) {
+        const error = new Error("stale");
+        error.code = "REVISION_CONFLICT";
+        throw error;
+      }
+      revision += 1;
+    },
+    retryDelaysMs: [0, 0, 0],
+  });
+
+  queue.queueUpdate("wnn_conflict", { patch: {} }, 1);
+  await assert.rejects(queue.flush("wnn_conflict"), (error) => error.code === "REVISION_CONFLICT");
+  queue.clearFailure("wnn_conflict");
+  assert.deepEqual(queue.queueUpdate("wnn_conflict", { patch: {} }, 2), { revision: 3 });
+  await queue.flush("wnn_conflict");
+  assert.equal(revision, 3);
+});
+
+test("accepts a newer idle revision after another process advances the record", async () => {
+  let revision = 1;
+  const queue = new PersistenceQueue({
+    create: async () => {},
+    update: async (_id, _input, { expectedRevision }) => {
+      assert.equal(expectedRevision, revision);
+      revision += 1;
+    },
+    retryDelaysMs: [0, 0, 0],
+  });
+
+  queue.queueUpdate("wnn_external", { patch: {} }, 1);
+  await queue.flush("wnn_external");
+  revision = 5;
+  assert.deepEqual(queue.queueUpdate("wnn_external", { patch: {} }, 5), { revision: 6 });
+  await queue.flush("wnn_external");
+  assert.equal(revision, 6);
+});

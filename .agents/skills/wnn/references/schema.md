@@ -4,17 +4,17 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 
 ## Top-level fields
 
-- `schema_version`: integer, currently `2`. Version 1 records are not supported
-  because the feature has not been released with that version.
+- `schema_version`: integer, currently `3`. Older development records are not
+  migrated or loaded.
 - `conversation_id`: generated `wnn_<uuid>` identifier.
 - `source_thread_id`: originating Codex thread when available, otherwise null.
 - `revision`: incremented after every successful update.
 - `title`: short display label.
 - `task_text`: current editable memo text; edits overwrite the previous text.
-- `conversation_state`: `active`, `delegated`, `ended`, or `executing`.
-- `lifecycle`: `open`, `started`, `completed`, or `archived`.
+- `conversation_state`: `active`, `ended`, or `executing`.
+- `lifecycle`: `open`, `completed`, or `archived`.
 - `decision`: `undecided`, `do_now`, or `not_now`.
-- `enrichment`: `none`, `partial`, `delegated`, `complete`, or `failed`.
+- `enrichment`: `none`, `partial`, `complete`, or `failed`.
 - `interpretation`: the current structured understanding: `goal`,
   `current_situation`, `desired_outcome`, `completion_conditions`, and optional
   `execution_prompt`.
@@ -25,9 +25,24 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 - `project_refs`: confirmed related local projects.
 - `dialogue`: interaction state: whether the value question was already asked,
   the active focus, covered topics, and concise open threads.
-- `delegation` / `execution`: handoff state and destination thread IDs when available.
 - `events`: append-only decision and lifecycle events, never the full conversation.
-- `created_at`, `updated_at`, `last_processed_at`: UTC ISO-8601 timestamps.
+- `created_at`, `updated_at`: UTC ISO-8601 timestamps.
+
+## Lifecycle
+
+- New deferred items use `lifecycle: open` and normally
+  `conversation_state: active`.
+- Completing an item sets `lifecycle: completed`,
+  `conversation_state: ended`, and appends a `completed` event.
+- Restoring a completed item sets `lifecycle: open`,
+  `conversation_state: active`, `decision: not_now`, and appends a `reopened`
+  event.
+- Archiving sets `lifecycle: archived` and appends an `archived` event.
+- Starting the underlying task sets `conversation_state: executing`; executing
+  items are excluded from the default open inbox view.
+
+Conversation list operations accept `view: open`, `completed`, `archived`, or
+`all`. The default `open` view includes only open, non-executing items.
 
 ## Reason to do
 
