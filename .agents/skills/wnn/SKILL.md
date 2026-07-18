@@ -69,8 +69,11 @@ now**.
 
 The saved item appears in the local WhyNotNow inbox at
 `http://127.0.0.1:49321/` while Codex and the plugin MCP server are running.
-Treat the inbox as the primary place to scan, complete, and restore items. Keep
-capture, discussion, editing, research, starting, and archival in Codex.
+Treat the inbox as the primary place to capture a task body, scan, complete,
+and restore items. A browser capture creates an active, open, `undecided`
+record with only its task text; it does not open Codex or infer motivations,
+constraints, or a decision. Keep discussion, editing, research, starting, and
+archival in Codex.
 
 ## Revisit From the Inbox
 
@@ -85,8 +88,10 @@ For an inbox revisit prompt:
    title as `query`.
 2. Compare title, task text, and update timestamp for exact equality.
 3. If exactly one item matches, call `get_conversation_context` for that item,
-   then update it with `conversation_state: active` before continuing the
-   discussion.
+   then update it with `conversation_state: active`. If its decision is
+   `undecided` (including a browser-created item), call `choose_action` before
+   continuing the discussion; handle a cancelled form with
+   `choose_cancel_followup` as for a newly created memo.
 4. If no item matches or more than one item matches, do not create a new
    conversation. Ask the user to identify the intended saved item.
 

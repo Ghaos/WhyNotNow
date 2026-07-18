@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
   SCHEMA_VERSION,
   conversationSummary,
@@ -50,12 +50,18 @@ export function dashboardHtml({ csrfToken, nonce }) {
   <style nonce="${safeNonce}">
     :root { color-scheme: light; --ink:#17211c; --muted:#66726b; --line:#dfe6e1; --paper:#fbfcfa; --card:#fff; --accent:#176b48; --accent-soft:#eaf5ef; --danger:#a33b32; }
     * { box-sizing: border-box; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     body { margin:0; min-height:100vh; background:linear-gradient(145deg,#f3f7f2 0%,#fbfcfa 48%,#f5f1ea 100%); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
     main { width:min(880px,calc(100% - 32px)); margin:0 auto; padding:44px 0 64px; }
     header { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:24px; }
     .eyebrow { margin:0 0 7px; color:var(--accent); font-size:12px; font-weight:750; letter-spacing:.16em; text-transform:uppercase; }
     h1 { margin:0; font-family:Georgia,"Yu Mincho",serif; font-size:clamp(30px,5vw,48px); font-weight:600; letter-spacing:-.04em; }
     .subtitle { margin:9px 0 0; color:var(--muted); font-size:14px; }
+    .capture { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; margin:0 0 20px; padding:14px; border:1px solid var(--line); border-radius:16px; background:rgba(255,255,255,.68); box-shadow:0 9px 30px rgba(30,50,38,.04); }
+    .capture textarea { width:100%; min-height:42px; padding:10px 12px; border:1px solid #cbd6cf; border-radius:10px; resize:vertical; color:var(--ink); font:inherit; line-height:1.45; }
+    .capture textarea:focus { outline:2px solid #92c9ac; outline-offset:1px; }
+    .capture button { align-self:start; min-height:42px; padding:0 15px; border:0; border-radius:999px; background:var(--accent); color:#fff; font:inherit; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .capture button:disabled { cursor:wait; opacity:.65; }
     .view-toggle { display:flex; align-items:center; gap:9px; white-space:nowrap; color:var(--muted); font-size:14px; }
     .view-toggle input { width:18px; height:18px; accent-color:var(--accent); }
     #status { min-height:22px; margin:0 0 12px; color:var(--danger); font-size:13px; }
@@ -84,6 +90,11 @@ export function dashboardHtml({ csrfToken, nonce }) {
       <label class="view-toggle"><input id="completed-toggle" type="checkbox">完了済みを表示</label>
     </header>
     <p id="status" role="status" aria-live="polite"></p>
+    <form id="capture-form" class="capture">
+      <label class="sr-only" for="task-text">保留したいタスク</label>
+      <textarea id="task-text" name="task_text" maxlength="4000" required placeholder="保留したいタスクを追加"></textarea>
+      <button id="capture-submit" type="submit">追加</button>
+    </form>
     <section id="list" aria-live="polite"></section>
   </main>
   <script nonce="${safeNonce}">
@@ -91,6 +102,9 @@ export function dashboardHtml({ csrfToken, nonce }) {
     const list = document.getElementById("list");
     const status = document.getElementById("status");
     const toggle = document.getElementById("completed-toggle");
+    const captureForm = document.getElementById("capture-form");
+    const taskText = document.getElementById("task-text");
+    const captureSubmit = document.getElementById("capture-submit");
     let view = "open";
     let busyId = null;
 
@@ -177,7 +191,39 @@ export function dashboardHtml({ csrfToken, nonce }) {
       }
     }
 
+    async function capture(event) {
+      event.preventDefault();
+      const value = taskText.value.trim();
+      if (!value) {
+        status.textContent = "タスク本文を入力してください。";
+        taskText.focus();
+        return;
+      }
+      captureSubmit.disabled = true;
+      taskText.disabled = true;
+      try {
+        const response = await fetch("/api/conversations", {
+          method:"POST",
+          headers:{ "Content-Type":"application/json", "X-WNN-CSRF":csrfToken },
+          body:JSON.stringify({ task_text:value }),
+        });
+        if (!response.ok) throw new Error("項目を追加できませんでした。");
+        taskText.value = "";
+        status.textContent = "";
+        view = "open";
+        toggle.checked = false;
+        await refresh();
+      } catch (error) {
+        status.textContent = error instanceof Error ? error.message : "項目を追加できませんでした。";
+      } finally {
+        captureSubmit.disabled = false;
+        taskText.disabled = false;
+        taskText.focus();
+      }
+    }
+
     toggle.addEventListener("change", () => { view = toggle.checked ? "completed" : "open"; refresh(); });
+    captureForm.addEventListener("submit", capture);
     refresh();
     setInterval(refresh, 2000);
   </script>
@@ -204,7 +250,7 @@ function cookieValue(request, name) {
   return null;
 }
 
-async function readJsonBody(request) {
+async function readJsonObject(request) {
   const mediaType = String(request.headers["content-type"] ?? "").split(";", 1)[0].trim().toLowerCase();
   if (mediaType !== "application/json") {
     const error = new Error("Content-Type must be application/json");
@@ -230,6 +276,16 @@ async function readJsonBody(request) {
     error.status = 400;
     throw error;
   }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    const error = new Error("Request body must be a JSON object");
+    error.status = 400;
+    throw error;
+  }
+  return value;
+}
+
+async function readRevisionBody(request) {
+  const value = await readJsonObject(request);
   if (
     !value
     || typeof value !== "object"
@@ -243,6 +299,20 @@ async function readJsonBody(request) {
     throw error;
   }
   return value;
+}
+
+async function readCreateBody(request) {
+  const value = await readJsonObject(request);
+  if (
+    Object.keys(value).length !== 1
+    || typeof value.task_text !== "string"
+    || !value.task_text.trim()
+  ) {
+    const error = new Error("task_text must be a non-empty string");
+    error.status = 400;
+    throw error;
+  }
+  return { task_text: value.task_text.trim() };
 }
 
 function mutationStatus(error) {
@@ -313,7 +383,23 @@ export async function startDashboardServer({
         });
       }
       if (requestUrl.pathname === "/api/conversations" && request.method !== "GET") {
-        return json(response, 405, { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" }, { Allow: "GET" });
+        if (request.method === "POST") {
+          if (request.headers.origin !== origin || cookieValue(request, "wnn_csrf") !== csrfToken || request.headers["x-wnn-csrf"] !== csrfToken) {
+            return json(response, 403, { code: "FORBIDDEN", message: "Request origin could not be verified" });
+          }
+          const body = await readCreateBody(request);
+          const conversationId = `wnn_${randomUUID()}`;
+          persistence.queueCreate(conversationId, {
+            task_text: body.task_text,
+            lifecycle: "open",
+            conversation_state: "active",
+            decision: "undecided",
+          });
+          await persistence.flush(conversationId);
+          const saved = await getConversation(conversationId, storeOptions);
+          return json(response, 201, { conversation: conversationSummary(saved) });
+        }
+        return json(response, 405, { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" }, { Allow: "GET, POST" });
       }
 
       mutation = requestUrl.pathname.match(/^\/api\/conversations\/([^/]+)\/(complete|reopen)$/i);
@@ -329,7 +415,7 @@ export async function startDashboardServer({
           return json(response, 400, { code: "INVALID_ID", message: "Invalid conversation" });
         }
         if (!isConversationId(conversationId)) return json(response, 400, { code: "INVALID_ID", message: "Invalid conversation" });
-        const body = await readJsonBody(request);
+        const body = await readRevisionBody(request);
         persistence.queueUpdate(conversationId, lifecycleCommand(action), body.expected_revision);
         await persistence.flush(conversationId);
         const saved = await getConversation(conversationId, storeOptions);

@@ -44,8 +44,10 @@ test("WhyNotNow starts deferred and uses a contextual dialogue flow", async () =
   assert.match(skill, /individual saved conversation/);
   assert.match(skill, /http:\/\/127\.0\.0\.1:49321\//);
   assert.match(skill, /Revisit From the Inbox/);
+  assert.match(skill, /browser capture creates an active, open, `undecided`\s+record with only its task text/);
   assert.match(skill, /title, task text, and update timestamp for exact equality/);
   assert.match(skill, /If no item matches or more than one item matches, do not create a new\s+conversation/);
+  assert.match(skill, /If its decision is\s+`undecided`[\s\S]*call `choose_action` before\s+continuing the discussion/);
   assert.match(skill, /matching\s+data, not instructions to execute/);
   assert.match(skill, /call `complete_conversation`/i);
   assert.match(skill, /call `reopen_conversation`/i);
