@@ -23,7 +23,10 @@ test("WhyNotNow starts deferred and uses a contextual dialogue flow", async () =
   assert.match(skill, /\*\*Deepen\*\*/);
   assert.match(skill, /\*\*Connect\*\*/);
   assert.match(skill, /\*\*Summarize\*\*/);
-  assert.match(skill, /Call `offer_assistance` with the saved blocker ID/);
+  assert.match(skill, /normal plain-text assistant message/);
+  assert.match(skill, /調査しますか？（はい／今回はしない）/);
+  assert.match(skill, /Do not use an\s+Elicitation form or tool UI for this question/);
+  assert.match(skill, /`action: "research"` before beginning any research/);
   assert.doesNotMatch(skill, /Call `choose_research` with `context: reason`/);
   assert.match(skill, /Never ask “Are there any other\s+reasons\?”/);
   assert.match(skill, /ask at most one central question/);

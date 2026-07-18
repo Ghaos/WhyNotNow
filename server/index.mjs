@@ -241,8 +241,8 @@ server.registerTool(
 server.registerTool(
   "offer_assistance",
   {
-    title: "Offer bounded WhyNotNow assistance",
-    description: "Ask for consent to investigate one concrete blocker with a stated read-only scope.",
+    title: "Record a bounded WhyNotNow assistance choice",
+    description: "Records the user's explicit plain-text choice about a concrete, read-only investigation.",
     inputSchema: {
       conversation_id: z.string().min(1).describe("Existing WhyNotNow conversation ID"),
       expected_revision: z.number().int().positive().describe("Current conversation revision"),
@@ -250,6 +250,7 @@ server.registerTool(
       problem_summary: z.string().min(1).max(1000).describe("Concrete blocker to address"),
       proposed_scope: z.string().min(1).max(1000).describe("Smallest read-only investigation to perform"),
       expected_result: z.string().min(1).max(1000).describe("What the user will receive, including any limitation"),
+      action: z.enum(["research", "decline"]).describe("The user's explicit response to the plain-text assistance offer"),
     },
     annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
   },
@@ -260,36 +261,13 @@ server.registerTool(
     problem_summary: problemSummary,
     proposed_scope: proposedScope,
     expected_result: expectedResult,
+    action,
   }) => {
     try {
       await persistence.flush(conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
-    const result = await server.server.elicitInput({
-      mode: "form",
-      message: `${problemSummary}\n\nI can investigate this by: ${proposedScope}\n\nYou will get: ${expectedResult}\n\nWould you like me to do that now?`,
-      requestedSchema: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            title: "Assistance",
-            oneOf: [{ const: "research", title: "investigate now" }, { const: "decline", title: "not now" }],
-          },
-        },
-        required: ["action"],
-      },
-    });
-
-    if (result.action !== "accept" || !result.content) {
-      return {
-        structuredContent: { action: "cancelled", conversation_id: conversationId, revision: expectedRevision },
-        content: [{ type: "text", text: "cancelled" }],
-      };
-    }
-
-    const { action } = result.content;
     const eventData = {
       reason_id: reasonId,
       problem_summary: problemSummary,

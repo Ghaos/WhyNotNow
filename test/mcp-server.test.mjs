@@ -10,18 +10,15 @@ import { createConversation, getConversation } from "../.agents/skills/wnn/scrip
 
 const serverPath = path.resolve(process.env.WHYNOTNOW_MCP_SERVER_PATH ?? "server/index.mjs");
 
-test("MCP action, assistance, and cancellation follow-ups persist choices over stdio", async (t) => {
+test("MCP action, plain-text assistance choices, and cancellation follow-ups persist choices over stdio", async (t) => {
   const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "whynotnow-mcp-test-"));
   const storeOptions = { env: { WHYNOTNOW_HOME: dataRoot } };
   const conversation = await createConversation({ task_text: "Form elicitationを試す" }, storeOptions);
   const cancelledConversation = await createConversation({ task_text: "キャンセルを試す" }, storeOptions);
   const responses = [
     { action: "accept", content: { action: "why_not_now", note: "まず理由を整理する" } },
-    { action: "accept", content: { action: "research" } },
-    { action: "accept", content: { action: "decline" } },
     { action: "decline" },
     { action: "accept", content: { action: "end" } },
-    { action: "accept", content: { action: "research" } },
   ];
   const requests = [];
   const client = new Client({ name: "why-not-now-test-client", version: "1.0.0" }, { capabilities: { elicitation: { form: {} } } });
@@ -61,13 +58,12 @@ test("MCP action, assistance, and cancellation follow-ups persist choices over s
     problem_summary: "対応環境が分からない",
     proposed_scope: "公式の互換性要件だけを確認する",
     expected_result: "対応可否と不足している条件を短く整理する",
+    action: "research",
   } });
-  assert.equal(requests[1].requestedSchema.properties.action.oneOf.length, 2);
-  assert.match(requests[1].message, /対応環境が分からない/);
-  assert.match(requests[1].message, /公式の互換性要件だけを確認する/);
   assert.equal(researchResult.structuredContent.action, "research");
   assert.equal(researchResult.structuredContent.revision, 3);
   assert.deepEqual(researchResult.content, []);
+  assert.equal(requests.length, 1, "assistance consent is collected in a plain-text assistant message, not an elicitation form");
   const contextResult = await client.callTool({ name: "get_conversation_context", arguments: {
     conversation_id: conversation.conversation_id,
   } });
@@ -84,6 +80,7 @@ test("MCP action, assistance, and cancellation follow-ups persist choices over s
     problem_summary: "対応環境が分からない",
     proposed_scope: "公式の互換性要件だけを確認する",
     expected_result: "対応可否と不足している条件を短く整理する",
+    action: "decline",
   } });
   assert.equal(declinedResult.structuredContent.action, "decline");
   await client.callTool({ name: "get_conversation_context", arguments: {
@@ -122,6 +119,7 @@ test("MCP action, assistance, and cancellation follow-ups persist choices over s
     problem_summary: "対応環境が分からない",
     proposed_scope: "公式の互換性要件だけを確認する",
     expected_result: "対応可否と不足している条件を短く整理する",
+    action: "research",
   } });
   assert.equal(staleResult.isError, true);
   assert.match(staleResult.content[0].text, /changed elsewhere/);

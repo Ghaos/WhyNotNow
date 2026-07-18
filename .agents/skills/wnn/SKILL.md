@@ -86,9 +86,11 @@ when it helps, but do not treat it as a checklist. Then respond to the latest
 point and choose exactly one move:
 
 - **Assist** when a specific obstacle has a small, credible, read-only next
-  step. State the obstacle, the smallest scope, and the expected result or
-  limitation. Call `offer_assistance` with the saved blocker ID and those three
-  fields. Do not call it merely because a reason was recorded.
+  step. In a normal plain-text assistant message, state the obstacle, the
+  smallest scope, and the expected result or limitation, then ask in plain
+  text, for example: `調査しますか？（はい／今回はしない）` Do not use an
+  Elicitation form or tool UI for this question.
+  Do not call `offer_assistance` merely because an offer was made.
 - **Deepen** when the latest point is ambiguous or needs one important
   condition. Ask one concise question about that same point.
 - **Connect** when the latest point naturally implies a related background,
@@ -106,7 +108,12 @@ makes it relevant.
 
 ### Assistance and research
 
-If `offer_assistance` is accepted, choose the smallest relevant read-only
+If the user explicitly accepts the plain-text assistance offer, call
+`offer_assistance` with the saved blocker ID, the offer details, and
+`action: "research"` before beginning any research. If the user explicitly
+declines, call it with `action: "decline"`. If the reply is unclear, ask for
+clarification and do not call the tool or research. After an accepted choice,
+choose the smallest relevant read-only
 target set from the saved record, public information, and an already-related
 or clearly related local project. If no safe target can be selected, ask before
 researching. Save new evidence as `ai_research` reasons, new normalized URLs
