@@ -1,8 +1,6 @@
-# WhyNotNow dialogue flowchart
+# WhyNotNow の対話フローチャート
 
-This diagram is the visual reference for the main dialogue flow. For the
-corresponding policy and detailed behavior, see
-[the dialogue design](dialogue-design.md).
+この図は主要な対話フローを視覚的に示したものです。対応するポリシーと詳しい動作は、[対話設計](dialogue-design.md) を参照してください。
 
 ```mermaid
 flowchart TD

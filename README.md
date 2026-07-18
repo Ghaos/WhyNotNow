@@ -1,68 +1,46 @@
 # WhyNotNow
 
-WhyNotNow is a deferred-work inbox with a Codex conversation workbench. Capture
-a rough task without immediately committing to it, explore why it is not right
-for now, then review or complete it without waiting for another AI response.
+WhyNotNow は、Codex の会話ワークベンチと連携する「後回しにした作業」の受信トレイです。すぐに着手すると決めずに気になる作業を記録し、なぜ今ではないのかを掘り下げ、別の AI 応答を待つことなく見直しや完了にできます。
 
-## Get started
+## はじめる
 
-Invoke the skill with a short memo:
+スキルを短いメモとともに呼び出します。
 
 ```text
-$wnn Investigate whether our onboarding emails should be simplified
+$wnn オンボーディングメールを簡潔にすべきか調べる
 ```
 
-WhyNotNow records the idea and asks you to choose one of two paths:
+WhyNotNow はアイデアを記録し、次の 2 つの進め方を尋ねます。
 
-- **Do it now** starts a separate Codex task with the context gathered so far.
-- **Why not now?** follows the concern you raise: it may clarify that point,
-  connect it to a related condition, or summarize what is understood. When a
-  blocker has a small, concrete path forward, it can offer to investigate that
-  path before you decide again.
+- **Do it now** は、ここまでに集めた文脈を引き継いで別の Codex タスクを開始します。
+- **Why not now?** は、あなたが挙げた懸念を起点に進みます。その点を明確にしたり、関連する条件と結び付けたり、分かっていることを要約したりします。障害に小さく具体的な解決の糸口がある場合は、もう一度判断する前にその調査を提案できます。
 
-You can include why the task matters, known constraints, and relevant links in
-your memo. Add more context at any time; WhyNotNow follows the conversation
-rather than asking you to list reasons.
+メモには、作業が重要な理由、分かっている制約、関連リンクも含められます。あとから文脈を追加することもできます。WhyNotNow は理由を列挙するよう求めるのではなく、会話に沿って進みます。
 
-## Open the inbox
+## 受信トレイを開く
 
-While Codex and the WhyNotNow plugin are running, open
-[http://127.0.0.1:49321/](http://127.0.0.1:49321/) in a browser. The inbox
-updates automatically and shows each open item with its current blocker and
-latest update.
+Codex と WhyNotNow プラグインの実行中に、ブラウザで [http://127.0.0.1:49321/](http://127.0.0.1:49321/) を開きます。受信トレイは自動更新され、各保留項目の現在の障害と最終更新を表示します。
 
-- Check an item to complete it without an AI round trip.
-- Switch to completed items and uncheck one to restore it.
-- Choose **Codexで見直す** to return to the source conversation when known, or
-  open a new Codex task that safely resumes the saved item.
+- 項目をチェックすると、AI とのやり取りなしに完了にできます。
+- 完了済み項目に切り替え、チェックを外すと復元できます。
+- **Codexで見直す** を選ぶと、分かる場合は元の会話に戻り、そうでなければ保存済み項目を安全に再開する新しい Codex タスクを開きます。
 
-The inbox is the primary place to scan and close deferred items. Codex remains
-the place to capture, discuss, edit, research, start, and archive them.
+受信トレイは、保留項目を確認して完了するための主な場所です。Codex は、記録、相談、編集、調査、開始、アーカイブを行う場所として使い続けます。
 
-## What to expect
+## 期待できること
 
-WhyNotNow asks one connected question at a time. It does not mechanically ask
-for another reason after each answer. If it can help with a specific obstacle,
-it first explains the smallest read-only investigation it can do and asks for
-your approval. The original task still starts only after you choose **Do it
-now**.
+WhyNotNow は、一度に関連する質問を 1 つだけ尋ねます。回答のたびに機械的に次の理由を尋ねることはありません。特定の障害を手伝える場合は、実施できる最小限の読み取り専用調査を先に説明し、承認を求めます。元の作業は、**Do it now** を選ぶまで開始されません。
 
-## Return to an idea
+## アイデアに戻る
 
-Use `$wnn-list` as a fallback when the browser inbox is unavailable. Use `$wnn`
-to show, add to, edit, revisit, complete, restore, start, or archive an
-individual saved conversation. Each idea remains separate, so unrelated tasks
-do not get mixed together.
+ブラウザの受信トレイを利用できない場合は、代替として `$wnn-list` を使います。`$wnn` では、個別に保存された会話を表示、追記、編集、再訪、完了、復元、開始、アーカイブできます。各アイデアは分かれているため、無関係な作業が混ざることはありません。
 
-## Privacy
+## プライバシー
 
-Your WhyNotNow conversations stay on your device. WhyNotNow does not use
-telemetry or cloud sync.
+WhyNotNow の会話はデバイス上に保存されます。WhyNotNow はテレメトリーやクラウド同期を使用しません。
 
-On first use, Codex may ask for narrowly scoped permission to save the
-conversation. Approve only the permission shown for WhyNotNow.
+初回利用時には、会話を保存するための限定的な権限を Codex が求めることがあります。WhyNotNow に対して表示された権限だけを承認してください。
 
-## For contributors
+## コントリビューター向け
 
-Development, testing, packaging, and data-handling details are in
-[AGENTS.md](AGENTS.md).
+開発、テスト、パッケージ化、データの取り扱いについては、[AGENTS.md](AGENTS.md) を参照してください。

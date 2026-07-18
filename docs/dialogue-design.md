@@ -1,128 +1,93 @@
-# WhyNotNow dialogue design
+# WhyNotNow の対話設計
 
-## Purpose
+## 目的
 
-WhyNotNow helps a user understand a deferred task through a natural dialogue.
-The goal is not to collect a list of reasons.  Each response should deepen the
-user's understanding of the task, its context, and the conditions under which
-it becomes worth doing.
+WhyNotNow は、自然な対話を通じて、ユーザーが保留した作業を理解できるよう支援します。目的は理由のリストを集めることではありません。各応答では、作業の意味、背景、そして着手する価値が生まれる条件への理解を深めます。
 
-The local browser inbox is the canonical review surface for saved items. It
-supports scanning, completion, restoration, and returning to a Codex
-conversation without an AI round trip for routine state changes. Codex remains
-the workbench for capture, interpretation, research, editing, starting, and
-archival.
+ローカルのブラウザ受信トレイは、保存済み項目を見直すための正規の画面です。通常の状態変更で AI とのやり取りを必要とせず、項目の確認、完了、復元、Codex 会話への復帰を行えます。Codex は、記録、解釈、調査、編集、開始、アーカイブのためのワークベンチです。
 
-The conversation may surface a small, bounded obstacle that the assistant can
-help resolve.  Offer that help only when it is concrete and useful; do not
-turn every reason into a research request.
+会話の中で、アシスタントが解消を助けられる小さく限定的な障害が見つかることがあります。その支援は具体的かつ有用な場合にのみ提案し、すべての理由を調査依頼に変えてはいけません。
 
-## Flow
+## フロー
 
-See [the dialogue flowchart](dialogue-flowchart.md) for the complete flow.
-It covers accepted choices in the main dialogue. If the initial action form is
-cancelled, the separate cancellation follow-up handles optional additional
-research or ending the conversation.
+全体の流れは [対話フローチャート](dialogue-flowchart.md) を参照してください。主要な対話で受け付ける選択肢を扱っています。最初のアクションフォームがキャンセルされた場合は、専用のキャンセル後フローで、追加調査または会話終了を任意で扱います。
 
-## Safety boundary
+## 安全境界
 
-- A `$wnn` invocation records a task as deferred; it never starts the task.
-- The assistant may do read-only research only after the user explicitly
-  accepts a concrete research offer.
-- The assistant may start the underlying task only after the user explicitly
-  chooses **Do it now**.
-- Persist structured understanding, not chat transcripts or private reasoning.
+- `$wnn` の呼び出しは、作業を保留として記録します。作業を開始することはありません。
+- アシスタントが読み取り専用の調査を行えるのは、ユーザーが具体的な調査提案を明示的に受け入れた後だけです。
+- アシスタントが元の作業を開始できるのは、ユーザーが **Do it now** を明示的に選んだ後だけです。
+- 保存するのは構造化された理解であり、会話の記録や非公開の推論ではありません。
 
-## Conversation policy
+## 会話ポリシー
 
-After every substantive user message, first update the structured
-understanding.  Then respond to the latest point and choose exactly one next
-move:
+実質的なユーザーメッセージを受け取るたび、まず構造化された理解を更新します。次に最新の発言に応答し、次の動きからちょうど 1 つを選びます。
 
-| Move | Use when | Response shape |
+| 動き | 使う場面 | 応答の形 |
 | --- | --- | --- |
-| `assist` | A specific obstacle has a small, credible, read-only next step. | Explain the bounded help and ask whether to do it now. |
-| `deepen` | The latest point is ambiguous or has an important missing condition. | Ask one question about that same point. |
-| `connect` | The latest point naturally implies a related background, priority, desired outcome, or constraint. | State the connection and ask one related question. |
-| `summarize` | The current thread is sufficiently understood, or no useful question remains. | Reflect the understanding and offer the appropriate decision or a user-led continuation. |
+| `assist` | 特定の障害に、小さく信頼できる読み取り専用の次の一手がある。 | 限定された支援を説明し、今行うか尋ねる。 |
+| `deepen` | 最新の発言が曖昧、または重要な条件が欠けている。 | その同じ点について 1 つ質問する。 |
+| `connect` | 最新の発言から、関連する背景、優先順位、望ましい結果、制約が自然に導かれる。 | つながりを述べ、関連する質問を 1 つする。 |
+| `summarize` | 現在の対話を十分に理解できた、または有用な質問が残っていない。 | 理解を整理し、適切な判断またはユーザー主導の継続を示す。 |
 
-Do not use these moves as a fixed sequence.  Choose the one that best follows
-from the user's latest message and the current structured understanding.
+これらを固定の順序として使ってはいけません。ユーザーの最新メッセージと、現在の構造化された理解に最もよく続くものを選びます。
 
-## Questioning rules
+## 質問のルール
 
-- Ask at most one central question in a response.
-- Tie every follow-up question to the immediately preceding user statement.
-- Prefer a question that clarifies a causal link, condition, trade-off, or
-  desired outcome over a request for another item in a list.
-- Do not ask “Are there any other reasons?” or an equivalent generic prompt.
-- Do not ask about a topic that is already understood unless new information
-  makes it relevant again.
-- Stop asking questions once the current thread is understood.  Summarize or
-  present the next decision instead.
+- 応答ごとに中心となる質問は最大 1 つにします。
+- すべての追加質問を、直前のユーザー発言に結び付けます。
+- リストにもう 1 項目を求めるより、因果関係、条件、トレードオフ、望ましい結果を明確にする質問を優先します。
+- 「ほかに理由はありますか？」または同等の一般的な問いかけをしてはいけません。
+- 新しい情報によって再び重要にならない限り、すでに理解できている話題について尋ねてはいけません。
+- 現在の対話を理解できたら、質問を止めます。要約するか、次の判断を示します。
 
-## Assistance offers
+## 支援の提案
 
-An assistance offer must name all of the following before seeking consent:
+同意を求める前に、支援の提案では必ず次のすべてを示します。
 
-1. the obstacle it addresses;
-2. the smallest proposed scope; and
-3. the expected result or remaining limitation.
+1. 対象とする障害
+2. 提案する最小の範囲
+3. 期待できる結果、または残る制約
 
-For example:
+例:
 
-> If the uncertainty is whether the tool supports your environment, I can
-> check its official requirements and summarize only the compatibility result.
-> Would you like me to do that now?
+> 不確実なのが、そのツールがお使いの環境に対応しているかどうかであれば、公式の要件を確認し、互換性の結果だけを要約できます。今調べますか？
 
-If the user declines, retain the current context and choose the next natural
-move.  Do not automatically ask for another reason or end the conversation.
+ユーザーが断った場合は、現在の文脈を保ち、次に自然な動きを選びます。自動的に別の理由を尋ねたり、会話を終了したりしてはいけません。
 
-## Examples
+## 例
 
-### Deepen the current point
+### 現在の論点を深める
 
-User: “It seems like it will take too long.”
+ユーザー: 「時間がかかりそうです。」
 
-Assistant: “Is the concern mainly the amount of work, or that it is not clear
-what ‘done’ would look like?”
+アシスタント: 「懸念は主に作業量でしょうか。それとも『完了』の状態がはっきりしないことでしょうか？」
 
-### Connect to an adjacent point
+### 隣接する論点につなげる
 
-User: “I do not know how to use it effectively.”
+ユーザー: 「効果的な使い方が分かりません。」
 
-Assistant: “That sounds less like a lack of interest than uncertainty about a
-use case.  What would it need to help you accomplish in your own work?”
+アシスタント: 「興味がないというより、ユースケースが不確かな状態に見えます。ご自身の仕事で何を達成できれば役立つと感じますか？」
 
-### Offer bounded assistance
+### 限定的な支援を提案する
 
-User: “I am not sure whether it works with our current setup.”
+ユーザー: 「今の環境で動くかどうか分かりません。」
 
-Assistant: “I can check the official compatibility requirements for the
-current setup and identify any mismatch.  Would you like me to do that now?”
+アシスタント: 「現在の環境に対する公式の互換性要件を確認し、不一致があれば特定できます。今調べますか？」
 
-### Summarize instead of extending the list
+### リストを伸ばす代わりに要約する
 
-User: “It would be useful eventually, but it is not urgent and the setup is
-still unclear.”
+ユーザー: 「いつかは役立ちそうですが、急ぎではないし、セットアップもまだよく分かりません。」
 
-Assistant: “So the value is real, but the immediate priority and a clear
-starting point are missing.  Keeping this deferred until either changes seems
-reasonable.”
+アシスタント: 「価値はありそうですが、今すぐの優先度と明確な着手点が不足しています。どちらかが変わるまで保留にするのは妥当そうです。」
 
-## Acceptance scenarios
+## 受け入れシナリオ
 
-Use these scenarios to review a release manually:
+リリースを手作業で確認する際は、次のシナリオを使います。
 
-1. A time-related concern is explored through workload or completion
-   conditions, not by asking for another reason.
-2. A concrete compatibility or documentation gap produces one specific
-   read-only assistance offer.
-3. A priority concern is acknowledged and connected to a future review
-   condition, without trying to force a solution.
-4. Declining assistance leaves the assistant in the current conversation
-   context rather than a generic reason-collection loop.
-5. Once a thread is understood, the assistant summarizes instead of continuing
-   to question the user.
-6. The underlying task is not inspected, modified, or started before **Do it
-   now** is explicitly selected.
+1. 時間に関する懸念を、別の理由を求めるのではなく、作業量または完了条件を通じて掘り下げる。
+2. 具体的な互換性またはドキュメントの不足に対し、特定の読み取り専用支援を 1 つ提案する。
+3. 優先順位に関する懸念を認め、解決を強要せずに将来の見直し条件につなげる。
+4. 支援を断っても、一般的な理由収集のループではなく、現在の会話の文脈を維持する。
+5. 対話を理解できたら、質問を続けるのではなく要約する。
+6. **Do it now** が明示的に選ばれる前に、元の作業を調査、変更、開始しない。
