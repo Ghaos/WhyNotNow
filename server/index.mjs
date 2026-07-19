@@ -332,62 +332,6 @@ server.registerTool(
   },
 );
 
-server.registerTool(
-  "choose_cancel_followup",
-  {
-    title: "Choose a WhyNotNow cancellation follow-up",
-    description: "Offer additional read-only research or end after the initial action form is cancelled.",
-    inputSchema: {
-      conversation_id: z.string().min(1).describe("Existing WhyNotNow conversation ID"),
-      expected_revision: z.number().int().positive().describe("Current conversation revision"),
-    },
-    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
-  },
-  async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
-    try {
-      await persistence.flush(conversationId);
-    } catch (error) {
-      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
-    }
-    const result = await server.server.elicitInput({
-      mode: "form",
-      message: "Would you like me to do additional research before ending this conversation?",
-      requestedSchema: {
-        type: "object",
-        properties: {
-          action: {
-            type: "string",
-            title: "Next Step",
-            oneOf: [{ const: "research", title: "do additional research" }, { const: "end", title: "end" }],
-          },
-        },
-        required: ["action"],
-      },
-    });
-
-    if (result.action !== "accept" || !result.content) {
-      return {
-        structuredContent: { action: "cancelled", conversation_id: conversationId, revision: expectedRevision },
-        content: [{ type: "text", text: "cancelled" }],
-      };
-    }
-
-    const updates = {
-      research: { patch: {}, event: { type: "research_requested", data: { context: "cancelled_action" } } },
-      end: { patch: { conversation_state: "ended" }, event: { type: "ended", data: {} } },
-    };
-    const update = updates[result.content.action];
-    if (!update) return { isError: true, content: [{ type: "text", text: `Unhandled selection: ${result.content.action}` }] };
-
-    try {
-      const structuredContent = saveSelection(conversationId, expectedRevision, { action: result.content.action, ...update });
-      return silent(structuredContent, conversationId);
-    } catch (error) {
-      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
-    }
-  },
-);
-
 const transport = new StdioServerTransport();
 const configuredDashboardPort = Number.parseInt(process.env.WHYNOTNOW_DASHBOARD_PORT ?? "", 10);
 await startDashboardServer({

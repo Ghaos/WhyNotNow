@@ -35,8 +35,8 @@ test("WhyNotNow starts deferred and uses a contextual dialogue flow", async () =
   assert.match(skill, /Only in a later turn may\s+you call `choose_action`/);
   assert.match(skill, /If the obstacle remains,\s+continue from the current thread/);
   assert.match(skill, /If assistance\s+is declined or cancelled, retain the current context/);
-  assert.match(skill, /If the form is cancelled, leave the record `active`\s+with `decision: undecided`, then call `choose_cancel_followup`/);
-  assert.match(skill, /For \*\*end\*\*, the MCP tool saves\s+`conversation_state:\s+ended` and an `ended` event/);
+  assert.match(skill, /If the form is cancelled, leave the record `active`\s+with `decision: undecided` and end the interaction without further action/);
+  assert.doesNotMatch(skill, /choose_cancel_followup/);
   assert.doesNotMatch(skill, /Delegate interpretation and research to AI/);
   assert.match(skill, /do not run `scripts\/whynotnow\.mjs` in a user conversation/);
   assert.match(skill, /Do not mention successful saving, loading, JSON, paths, IDs, or revisions/);

@@ -10,7 +10,7 @@ import { createConversation, getConversation } from "../.agents/skills/wnn/scrip
 
 const serverPath = path.resolve(process.env.WHYNOTNOW_MCP_SERVER_PATH ?? "server/index.mjs");
 
-test("MCP action, plain-text assistance choices, and cancellation follow-ups persist choices over stdio", async (t) => {
+test("MCP action and plain-text assistance choices persist choices over stdio", async (t) => {
   const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), "whynotnow-mcp-test-"));
   const storeOptions = { env: { WHYNOTNOW_HOME: dataRoot } };
   const conversation = await createConversation({ task_text: "Form elicitationを試す" }, storeOptions);
@@ -18,7 +18,6 @@ test("MCP action, plain-text assistance choices, and cancellation follow-ups per
   const responses = [
     { action: "accept", content: { action: "why_not_now", note: "まず理由を整理する" } },
     { action: "decline" },
-    { action: "accept", content: { action: "end" } },
   ];
   const requests = [];
   const client = new Client({ name: "why-not-now-test-client", version: "1.0.0" }, { capabilities: { elicitation: { form: {} } } });
@@ -39,7 +38,7 @@ test("MCP action, plain-text assistance choices, and cancellation follow-ups per
   assert.deepEqual(tools.tools.map((tool) => tool.name), [
     "create_conversation", "update_conversation", "get_conversation_context", "list_conversation_summaries",
     "complete_conversation", "reopen_conversation", "archive_conversation", "ping", "choose_action",
-    "offer_assistance", "choose_cancel_followup",
+    "offer_assistance",
   ]);
   const result = await client.callTool({ name: "ping", arguments: {} });
   assert.deepEqual(result.content, [{ type: "text", text: "pong" }]);
@@ -122,17 +121,6 @@ test("MCP action, plain-text assistance choices, and cancellation follow-ups per
   assert.equal(unchanged.revision, 1);
   assert.equal(unchanged.conversation_state, "active");
   assert.equal(unchanged.decision, "undecided");
-
-  const endResult = await client.callTool({ name: "choose_cancel_followup", arguments: {
-    conversation_id: cancelledConversation.conversation_id, expected_revision: cancelledConversation.revision,
-  } });
-  assert.equal(endResult.structuredContent.action, "end");
-  assert.equal(endResult.structuredContent.conversation_state, "ended");
-  await client.callTool({ name: "get_conversation_context", arguments: {
-    conversation_id: cancelledConversation.conversation_id,
-  } });
-  const ended = await getConversation(cancelledConversation.conversation_id, storeOptions);
-  assert.equal(ended.events.at(-1).type, "ended");
 
   const staleResult = await client.callTool({ name: "offer_assistance", arguments: {
     conversation_id: conversation.conversation_id,

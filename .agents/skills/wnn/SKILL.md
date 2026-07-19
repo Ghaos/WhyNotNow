@@ -58,9 +58,9 @@ For a new memo:
 6. Continue from the accepted action and returned revision. For **Why not now?**,
    ask one concise question that invites the user to describe what is making
    the task unsuitable now. If the form is cancelled, leave the record `active`
-   with `decision: undecided`, then call `choose_cancel_followup`. If the MCP
-   tool is unavailable, present the same two actions as concise plain text and
-   persist the user's next reply through the CLI.
+   with `decision: undecided` and end the interaction without further action.
+   If the MCP tool is unavailable, present the same two actions as concise
+   plain text and persist the user's next reply through the CLI.
 
 For example, `$wnn WhyNotNowの動作確認をする` must create an undecided record
 whose `task_text` is `WhyNotNowの動作確認をする`, then invoke the action form.
@@ -90,8 +90,8 @@ For an inbox revisit prompt:
 3. If exactly one item matches, call `get_conversation_context` for that item,
    then update it with `conversation_state: active`. If its decision is
    `undecided` (including a browser-created item), call `choose_action` before
-   continuing the discussion; handle a cancelled form with
-   `choose_cancel_followup` as for a newly created memo.
+   continuing the discussion. If the form is cancelled, leave the record
+   active and undecided, then end the interaction without further action.
 4. If no item matches or more than one item matches, do not create a new
    conversation. Ask the user to identify the intended saved item.
 
@@ -174,15 +174,6 @@ check. Continue from the returned action and revision.
 If the MCP tool is unavailable, present the same two actions as concise plain
 text and explain that the conversation cannot be saved in this task. Never claim
 that a selection was saved when the tool returns an error.
-
-### Cancelled Action Form
-
-After an initial action-form cancellation, `choose_cancel_followup` asks
-whether to do additional research or end. For **research**, use the task text
-and existing record to select a minimal read-only target set, then follow the
-findings rules above. For **end**, the MCP tool saves `conversation_state:
-ended` and an `ended` event; do not write a duplicate event. If this follow-up
-form is cancelled, leave the record active and unchanged.
 
 ### Do it now
 
