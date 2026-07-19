@@ -47,6 +47,7 @@ test("MCP action and plain-text assistance choices persist choices over stdio", 
     conversation_id: conversation.conversation_id, expected_revision: conversation.revision,
   } });
   assert.equal(requests[0].requestedSchema.properties.action.oneOf.length, 2);
+  assert.equal(requests[0].requestedSchema.properties.action.oneOf[0].title, "Do it now");
   assert.equal(choiceResult.structuredContent.action, "why_not_now");
   assert.equal(choiceResult.structuredContent.revision, 2);
   assert.deepEqual(choiceResult.content, []);

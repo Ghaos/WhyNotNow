@@ -240,7 +240,7 @@ server.registerTool(
             type: "string",
             title: "Next Action",
             oneOf: [
-              { const: "do_now", title: "do now" },
+              { const: "do_now", title: "Do it now" },
               { const: "why_not_now", title: "why not now?" },
             ],
           },
