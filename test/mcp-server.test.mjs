@@ -23,6 +23,7 @@ test("MCP action and plain-text assistance choices persist choices over stdio", 
   const storeOptions = { env: { WHYNOTNOW_HOME: dataRoot } };
   const conversation = await createConversation({ task_text: "Form elicitationを試す" }, storeOptions);
   const cancelledConversation = await createConversation({ task_text: "キャンセルを試す" }, storeOptions);
+  const executionConversation = await createConversation({ task_text: "重複実行を防ぐ", decision: "do_now" }, storeOptions);
   const responses = [
     { action: "accept", content: { action: "why_not_now", note: "まず理由を整理する" } },
     { action: "decline" },
@@ -46,7 +47,7 @@ test("MCP action and plain-text assistance choices persist choices over stdio", 
   assert.deepEqual(tools.tools.map((tool) => tool.name), [
     "create_conversation", "update_conversation", "get_conversation_context", "list_conversation_summaries",
     "complete_conversation", "reopen_conversation", "archive_conversation", "ping", "choose_action",
-    "offer_assistance",
+    "begin_execution", "cancel_execution_start", "offer_assistance",
   ]);
   const result = await client.callTool({ name: "ping", arguments: {} });
   assert.deepEqual(result.content, [{ type: "text", text: "pong" }]);
@@ -131,6 +132,30 @@ test("MCP action and plain-text assistance choices persist choices over stdio", 
   assert.equal(unchanged.revision, 1);
   assert.equal(unchanged.conversation_state, "active");
   assert.equal(unchanged.decision, "undecided");
+
+  const startedResult = await client.callTool({ name: "begin_execution", arguments: {
+    conversation_id: executionConversation.conversation_id,
+    expected_revision: executionConversation.revision,
+    execution_prompt: "重複しない実行タスクを作成する",
+  } });
+  const started = internalResult(startedResult);
+  assert.deepEqual(started, { action: "started", revision: 2 });
+  const reenteredResult = await client.callTool({ name: "begin_execution", arguments: {
+    conversation_id: executionConversation.conversation_id,
+    expected_revision: executionConversation.revision,
+    execution_prompt: "重複しない実行タスクを作成する",
+  } });
+  assert.deepEqual(internalResult(reenteredResult), { action: "already_started", revision: 2 });
+  const executing = await getConversation(executionConversation.conversation_id, storeOptions);
+  assert.equal(executing.conversation_state, "executing");
+  assert.equal(executing.interpretation.execution_prompt, "重複しない実行タスクを作成する");
+  assert.equal(executing.events.at(-1).type, "execution_started");
+  const cancelledExecution = await client.callTool({ name: "cancel_execution_start", arguments: {
+    conversation_id: executionConversation.conversation_id,
+    expected_revision: started.revision,
+  } });
+  assert.deepEqual(internalResult(cancelledExecution), { revision: 3 });
+  assert.equal((await getConversation(executionConversation.conversation_id, storeOptions)).conversation_state, "active");
 
   const staleResult = await client.callTool({ name: "offer_assistance", arguments: {
     conversation_id: conversation.conversation_id,

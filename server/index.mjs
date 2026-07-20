@@ -287,6 +287,79 @@ server.registerTool(
 );
 
 server.registerTool(
+  "begin_execution",
+  {
+    title: "Begin a WhyNotNow execution once",
+    description: "Atomically records the start of a selected task so a resumed conversation cannot create a duplicate Codex task.",
+    inputSchema: {
+      conversation_id: z.string().min(1),
+      expected_revision: z.number().int().positive(),
+      execution_prompt: z.string().min(1).max(20_000),
+    },
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ conversation_id: conversationId, expected_revision: expectedRevision, execution_prompt: executionPrompt }) => {
+    try {
+      await persistence.flush(conversationId);
+      const conversation = await getConversation(conversationId);
+      if (conversation.conversation_state === "executing") {
+        return internalResult({ action: "already_started", revision: conversation.revision }, conversationId);
+      }
+      if (conversation.decision !== "do_now") {
+        return {
+          isError: true,
+          content: [{ type: "text", text: "Choose Do it now before starting this task." }],
+        };
+      }
+      const queued = persistence.queueUpdate(conversationId, {
+        patch: {
+          conversation_state: "executing",
+          interpretation: { execution_prompt: executionPrompt },
+        },
+        append_events: [{ type: "execution_started", data: {} }],
+      }, expectedRevision);
+      await persistence.flush(conversationId);
+      return internalResult({ action: "started", revision: queued.revision }, conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
+
+server.registerTool(
+  "cancel_execution_start",
+  {
+    title: "Cancel an uncreated WhyNotNow execution",
+    description: "Reopens an execution reservation only when creating the separate Codex task failed before it existed.",
+    inputSchema: {
+      conversation_id: z.string().min(1),
+      expected_revision: z.number().int().positive(),
+    },
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
+    try {
+      await persistence.flush(conversationId);
+      const conversation = await getConversation(conversationId);
+      if (conversation.conversation_state !== "executing") {
+        return {
+          isError: true,
+          content: [{ type: "text", text: "There is no execution start to cancel." }],
+        };
+      }
+      const queued = persistence.queueUpdate(conversationId, {
+        patch: { conversation_state: "active" },
+        append_events: [{ type: "execution_start_cancelled", data: {} }],
+      }, expectedRevision);
+      await persistence.flush(conversationId);
+      return internalResult({ revision: queued.revision }, conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
+
+server.registerTool(
   "offer_assistance",
   {
     title: "Record a bounded WhyNotNow assistance choice",

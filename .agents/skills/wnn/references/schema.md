@@ -38,8 +38,11 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
   `conversation_state: active`, `decision: not_now`, and appends a `reopened`
   event.
 - Archiving sets `lifecycle: archived` and appends an `archived` event.
-- Starting the underlying task sets `conversation_state: executing`; executing
-  items are excluded from the default open inbox view.
+- Starting the underlying task is reserved atomically before a separate Codex
+  task is created. The reservation sets `conversation_state: executing`; a
+  repeated start attempt reports that execution already started and does not
+  create another task. Executing items are excluded from the default open inbox
+  view.
 
 Conversation list operations accept `view: open`, `completed`, `archived`, or
 `all`. The default `open` view includes only open, non-executing items.

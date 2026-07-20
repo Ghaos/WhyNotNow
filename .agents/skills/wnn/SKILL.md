@@ -177,7 +177,9 @@ that a selection was saved when the tool returns an error.
 
 ### Do it now
 
-Create a scoped execution prompt containing the goal, current task text, reasons for doing it, known blockers, relevant project, constraints, and completion conditions. Save `conversation_state: executing`, `decision: do_now`, and the prompt before creating a separate Codex task.
+Create a scoped execution prompt containing the goal, current task text, reasons for doing it, known blockers, relevant project, constraints, and completion conditions. Before creating a separate Codex task, call `begin_execution` with the current conversation, revision, and prompt. It atomically records `conversation_state: executing`, `decision: do_now`, and the prompt.
+
+Create the separate task only when `begin_execution` returns `action: "started"`. If it returns `action: "already_started"`, do not create, delegate, or resume another task: this saved item already has an execution in progress. If task creation fails before a task exists, call `cancel_execution_start` with the returned revision, then return the copyable prompt. If either tool fails, do not create a task.
 
 Use a project-backed task when a confirmed project reference exists; otherwise use a projectless task. Normal approval and sandbox boundaries still apply. If task creation is unavailable, return the copyable prompt and keep the record recoverable.
 
