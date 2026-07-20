@@ -5,7 +5,7 @@
 - WhyNotNow のユーザーフローを変更する前に、`.agents/skills/wnn/SKILL.md` を読むこと。
 - WhyNotNow のユーザーフローを変更し、表示されるフローに影響する場合は、`docs/dialogue-flowchart.md` を更新すること。
 - スキル、サーバー、ストレージの動作に影響し得る変更では、`npm.cmd run check` と `npm.cmd test` を実行すること。配布用 MCP サーバーの更新が必要な場合は、`npm.cmd run build:plugin-server` も実行すること。
-- インストール済みの個人用プラグインを変更した後は、`plugin-creator` のキャッシュバスターと再インストールのフローを使い、新しい Codex タスクで確認すること。
+- 個人用プラグインの再インストールは、ユーザーから明示的に依頼された場合にのみ行うこと。依頼された場合は、`plugin-creator` のキャッシュバスターと再インストールのフローを使い、新しい Codex タスクで確認すること。
 
 ## 開発リファレンス
 
