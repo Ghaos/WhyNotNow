@@ -1,6 +1,6 @@
 # WhyNotNow の対話フローチャート
 
-この図は、ダッシュボードの3状態と2種類のCodexセッションを示します。詳しい対話方針は [対話設計](dialogue-design.md) を参照してください。
+この図は、ダッシュボードの3状態と2種類のCodexセッションを示します。詳しい対話方針は [対話設計](dialogue-design-ja.md) を参照してください。
 
 ```mermaid
 flowchart TD

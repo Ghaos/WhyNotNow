@@ -5,7 +5,9 @@ description: Capture a rough task as a deferred task and discuss why it should n
 
 # Why Not Now
 
-Treat one WhyNotNow dialogue as one durable conversation record. Keep the interaction as lightweight as a memo pad while helping the user decide what to do.
+Treat one WhyNotNow dialogue as one durable conversation record. Keep the
+interaction as lightweight as a memo pad while helping the user decide what to
+do.
 
 ## Non-execution rule
 
@@ -19,30 +21,49 @@ Only begin the underlying task in a fresh Codex session launched after the
 user explicitly selects **Do it now** in the dashboard. A request made inside
 a Why-not-now discussion does not start the task; direct the user to the
 dashboard so execution remains a separate session. Do not infer that choice
-from the task text, urgency, or a lack of stated reasons. Read-only research is permitted only after the user
-accepts a concrete assistance offer. It may read the saved record, relevant
+from the task text, urgency, or a lack of stated reasons. Read-only research is
+permitted only after the user accepts a concrete assistance offer. It may read
+the saved record, relevant
 public information, and a local project only when that project is already
 recorded or is clearly related to the task. It must never implement the task,
 edit project files, or change external state.
 
-Use the `why-not-now` MCP server for every conversation read and write. The server owns JSON storage and its queue; do not run `scripts/whynotnow.mjs` in a user conversation. Read [schema.md](references/schema.md) before constructing a create or update payload.
+Use the `why-not-now` MCP server for every conversation read and write. The
+server owns JSON storage and its queue; do not run `scripts/whynotnow.mjs` in a
+user conversation. Read [schema.md](references/schema.md) before constructing
+a create or update payload.
 
 ## Persistence Contract
 
 Queue persistence before replying to the user:
 
 1. Interpret the latest user message.
-2. Call the matching MCP create or update operation with everything learned in that turn.
-3. Treat its successful acceptance as sufficient to reply; it writes JSON in the background.
-4. Only wait for the queue when the next operation needs a consistent saved record, such as details or matching a dashboard launch.
+2. Call the matching MCP create or update operation with everything learned in
+   that turn.
+3. Treat its successful acceptance as sufficient to reply; it writes JSON in
+   the background.
+4. Only wait for the queue when the next operation needs a consistent saved
+   record, such as details or matching a dashboard launch.
 
-On the first turn, create a minimal record even when only a few words are known. On later turns, use the MCP context operation to load the current displayable fields and revision, then update with that revision to detect concurrent edits. Update the current situation, desired outcome, completion conditions, active focus, covered topics, and open threads when the user provides them. Allow empty arrays, nulls, partial reason trees, and unanswered questions.
+On the first turn, create a minimal record even when only a few words are
+known. On later turns, use the MCP context operation to load the current
+displayable fields and revision, then update with that revision to detect
+concurrent edits. Update the current situation, desired outcome, completion
+conditions, active focus, covered topics, and open threads when the user
+provides them. Allow empty arrays, nulls, partial reason trees, and unanswered
+questions.
 
-Do not mention successful saving, loading, JSON, paths, IDs, or revisions. If the MCP server reports a previously failed queued write, say clearly and concisely that the latest content may not have been saved. Do not expose implementation details.
+Do not mention successful saving, loading, JSON, paths, IDs, or revisions. If
+the MCP server reports a previously failed queued write, say clearly and
+concisely that the latest content may not have been saved. Do not expose
+implementation details.
 
-The MCP server may need access to the OS-standard data directory. If access is denied, request approval only for the exact bundled MCP server command. Do not request a broad Node.js rule.
+The MCP server may need access to the OS-standard data directory. If access is
+denied, request approval only for the exact bundled MCP server command. Do not
+request a broad Node.js rule.
 
-Do not store the full chat transcript, hidden reasoning, fetched page bodies, credentials, or source-code contents. Store only the current structured result.
+Do not store the full chat transcript, hidden reasoning, fetched page bodies,
+credentials, or source-code contents. Store only the current structured result.
 
 ## Start a Conversation
 
@@ -50,17 +71,18 @@ For a new memo:
 
 1. Extract a short editable `task_text` and title without inventing missing details.
 2. Extract HTTP/HTTPS URLs from the user's text into `related_urls`.
-3. Extract explicit reasons that make the task worth doing into `reasons_for` with `origin: user` and `confirmation: confirmed`.
+3. Extract explicit reasons that make the task worth doing into `reasons_for`
+   with `origin: user` and `confirmation: confirmed`.
 4. Call `create_conversation` with the minimal record. The MCP server creates
    direct captures with `status: considering`.
 5. Do not show an action form. Ask one
    concise question that invites the user to describe what is making the task
    unsuitable now.
 
-For example, `$wnn WhyNotNowの動作確認をする` must create a `considering` record
-whose `task_text` is `WhyNotNowの動作確認をする`, then ask what makes the
-verification unsuitable now. It must not start the verification before the
-user explicitly chooses **Do it now**.
+For example, `$wnn Verify WhyNotNow` must create a `considering` record whose
+`task_text` is `Verify WhyNotNow`, then ask what makes the verification
+unsuitable now. It must not start the verification before the user explicitly
+chooses **Do it now**.
 
 The saved item appears in the local WhyNotNow dashboard at
 `http://127.0.0.1:49321/` while Codex and the plugin MCP server are running.
@@ -99,11 +121,14 @@ user-facing response.
 
 ### Preserve value
 
-Actively notice statements such as "This could be useful," "This looks interesting," "This seems trustworthy," or other evidence suggesting future value.
+Actively notice statements such as "This could be useful," "This looks
+interesting," "This seems trustworthy," or other evidence suggesting future
+value.
 
 - Preserve user-stated motivations as confirmed `user` reasons.
 - Store a motivation inferred by AI as `ai_inferred` and `unconfirmed`.
-- Ask at most once what makes the task worthwhile when no reason is present. Record that the question was asked even if the user exits without answering.
+- Ask at most once what makes the task worthwhile when no reason is present.
+  Record that the question was asked even if the user exits without answering.
 - Do not score, rank, or cancel out positive and negative reasons.
 
 ### Choose the next move
@@ -116,7 +141,8 @@ point and choose exactly one move:
 - **Assist** when a specific obstacle has a small, credible, read-only next
   step. In a normal plain-text assistant message, state the obstacle, the
   smallest scope, and the expected result or limitation, then ask in plain
-  text, for example: `調査しますか？（はい／今回はしない）` Do not use an
+  text, for example: `Would you like me to research this? (Yes / Not now)` Do
+  not use an
   Elicitation form or tool UI for this question.
   Do not call `offer_assistance` merely because an offer was made.
 - **Deepen** when the latest point is ambiguous or needs one important
@@ -173,13 +199,15 @@ It starts immediately under normal approval and sandbox boundaries.
 
 Support these explicit intents for an individual saved conversation:
 
-- **Details**: show task text, reasons for, reason tree, solutions, URLs, notes, and current state.
+- **Details**: show task text, reasons for, reason tree, solutions, URLs,
+  notes, and current state.
 - **Append**: add a timestamped note and incorporate new structured facts.
 - **Edit**: overwrite the current task text; do not retain text-version history.
 - **Start now**: save current context and direct the user to the dashboard's
   **Do it now** action, which creates a separate execution session.
 
-If an independent second task appears, propose starting a separate WhyNotNow conversation. Do not mix unrelated tasks into one record.
+If an independent second task appears, propose starting a separate WhyNotNow
+conversation. Do not mix unrelated tasks into one record.
 
 ## Storage implementation
 
@@ -208,4 +236,5 @@ An update payload contains a merge patch plus optional append-only collections:
 The MCP update tool cannot change `status`; dashboard actions own status
 transitions. Session IDs and session URLs are never part of a record.
 
-Use `WHYNOTNOW_HOME` only when the user or test environment explicitly overrides the OS-standard data directory.
+Use `WHYNOTNOW_HOME` only when the user or test environment explicitly
+overrides the OS-standard data directory.

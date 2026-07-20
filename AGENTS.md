@@ -1,27 +1,27 @@
-# WhyNotNow リポジトリの指示
+# WhyNotNow repository instructions
 
-## このリポジトリで作業する場合
+## Working in this repository
 
-- WhyNotNow のユーザーフローを変更する前に、`.agents/skills/wnn/SKILL.md` を読むこと。
-- WhyNotNow のユーザーフローを変更し、表示されるフローに影響する場合は、`docs/dialogue-flowchart.md` を更新すること。
-- スキル、サーバー、ストレージの動作に影響し得る変更では、`npm.cmd run check` と `npm.cmd test` を実行すること。配布用 MCP サーバーの更新が必要な場合は、`npm.cmd run build:plugin-server` も実行すること。
-- 個人用プラグインの再インストールは、ユーザーから明示的に依頼された場合にのみ行うこと。依頼された場合は、`plugin-creator` のキャッシュバスターと再インストールのフローを使い、新しい Codex タスクで確認すること。
+- Before changing a WhyNotNow user flow, read `.agents/skills/wnn/SKILL.md`.
+- If a changed user flow affects the displayed flow, update `docs/en/dialogue-flowchart.md`.
+- For changes that can affect the skill, server, or storage behavior, run `npm.cmd run check` and `npm.cmd test`. If the distributed MCP server needs updating, also run `npm.cmd run build:plugin-server`.
+- Reinstall the personal plugin only when the user explicitly requests it. When requested, use the `plugin-creator` cache-buster and reinstall flow, then verify it in a new Codex task.
 
-## 開発リファレンス
+## Development reference
 
-### 要件
+### Requirements
 
-- Node.js 20 以降
-- リポジトリスキル対応の Codex
+- Node.js 20 or later
+- Codex with repository-skill support
 
-### リポジトリ構成
+### Repository layout
 
-- `.agents/skills/wnn/` には、ユーザーが呼び出すスキルとその参照資料がある。
-- `server/` には、MCP サーバーと永続化キューがある。
-- `test/` には、Node のテストランナーで実行するテストがある。
-- `out/why-not-now/why-not-now-mcp.mjs` は、個人用 Codex プラグインで使うバンドル済み MCP サーバーである。`out/` は生成物であり、Git 管理しない。
+- `.agents/skills/wnn/` contains the user-invoked skill and its references.
+- `server/` contains the MCP server and persistence queue.
+- `test/` contains tests run by Node's test runner.
+- `out/why-not-now/why-not-now-mcp.mjs` is the bundled MCP server used by the personal Codex plugin. `out/` is generated and is not tracked by Git.
 
-### 検証とビルド
+### Verification and build
 
 ```powershell
 npm.cmd run check
@@ -29,11 +29,11 @@ npm.cmd test
 npm.cmd run build:plugin-server
 ```
 
-`build:plugin-server` は、単体で実行できる `out/why-not-now/why-not-now-mcp.mjs` を含む配布パッケージを生成する。実行時の依存関係はバンドルされるため、インストール済みプラグインには Node.js 20 以降だけが必要である。
+`build:plugin-server` creates a distributable package containing the standalone `out/why-not-now/why-not-now-mcp.mjs`. Runtime dependencies are bundled, so an installed plugin needs only Node.js 20 or later.
 
-### プラグインのパッケージ構成
+### Plugin package layout
 
-個人用プラグインは次の構成を持つ。
+The personal plugin has this layout:
 
 ```text
 out/why-not-now/
@@ -43,34 +43,34 @@ out/why-not-now/
 └─ skills/wnn/
 ```
 
-### 永続化と復旧
+### Persistence and recovery
 
-`server/index.mjs` の MCP サーバーが永続化の境界を担う。会話ごとに書き込みをキューイングし、楽観的リビジョンチェックを使う。
+The MCP server in `server/index.mjs` is the persistence boundary. It queues writes per conversation and uses optimistic revision checks.
 
-各会話は、スキルのインストール先とは別のローカル JSON レコードとして保存される。
+Each conversation is stored as a local JSON record, separate from the skill installation.
 
 - Windows: `%LOCALAPPDATA%\\WhyNotNow\\conversations-v4`
 - macOS: `~/Library/Application Support/WhyNotNow/conversations-v4`
 - Linux: `${XDG_DATA_HOME:-~/.local/share}/WhyNotNow/conversations-v4`
 
-テストでは、一時データを分離するために `WHYNOTNOW_HOME` を使う。
+Tests use `WHYNOTNOW_HOME` to isolate temporary data.
 
-現在の会話スキーマはバージョン 4 である。以前のスキーマは別の保存領域に残し、移行も読み込みも行わない。
+The current conversation schema is version 4. Older schemas remain in separate storage and are neither migrated nor read.
 
-`scripts/whynotnow.mjs` は、開発と復旧のためのユーティリティである。UTF-8 JSON 入力または標準入力から `create` と `update` のペイロードを受け取る。
+`scripts/whynotnow.mjs` is a utility for development and recovery. It accepts `create` and `update` payloads as UTF-8 JSON input or from standard input.
 
 ```powershell
 node .agents/skills/wnn/scripts/whynotnow.mjs --help
 node .agents/skills/wnn/scripts/whynotnow.mjs root
 ```
 
-## 不変条件
+## Invariants
 
-- `$wnn` は保留するタスクを記録する。ユーザーが明示的に **Do it now** を選ぶまで、その元のタスクを開始してはいけない。
-- 通常の会話の永続化には `why-not-now` MCP サーバーを使う。ストレージ CLI は開発と復旧専用である。
-- ストレージの仕組みをユーザー向け応答に含めない。JSON、パス、識別子、リビジョン、保存・読み込みの成功を表示してはいけない。
-- 完全なチャット記録、非公開の推論、認証情報、取得したページ本文、ソースコードの内容を永続化してはいけない。構造化された結果だけを保存する。
-- 明示的な調査の選択後に行う読み取り専用調査では、ローカルプロジェクトや外部状態を変更してはいけない。
-- `WHYNOTNOW_HOME` はテスト時、またはユーザーが明示的に求めた場合にだけ設定する。
-- 生のユーザーテキストを実行可能なシェルコードへ展開してはいけない。
-- 開発・復旧ユーティリティで保存済みレコードを直接作成または更新する前に、`.agents/skills/wnn/references/schema.md` を確認する。
+- `$wnn` records a deferred task. Do not start its original task until the user explicitly selects **Do it now**.
+- Use the `why-not-now` MCP server to persist regular conversations. The storage CLI is only for development and recovery.
+- Do not expose storage mechanics in user-facing responses. Never show JSON, paths, identifiers, revisions, or storage read/write success.
+- Do not persist full chat transcripts, private reasoning, credentials, fetched page content, or source-code content. Store only structured results.
+- Read-only research performed after an explicit research choice must not change local projects or external state.
+- Set `WHYNOTNOW_HOME` only in tests or when explicitly requested by the user.
+- Do not expand raw user text into executable shell code.
+- Before directly creating or updating a stored record with the development or recovery utility, read `.agents/skills/wnn/references/schema.md`.

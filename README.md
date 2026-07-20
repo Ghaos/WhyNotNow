@@ -1,38 +1,38 @@
 # WhyNotNow
 
-WhyNotNow は、今すぐ実行しないタスクを記録し、Codexとの対話で理由を整理してから、必要な文脈を添えて実行できるローカルダッシュボードです。
+WhyNotNow is a local dashboard for capturing tasks you do not want to start yet, clarifying why through a Codex conversation, and later starting them with the relevant context.
 
-## 基本フロー
+## Core flow
 
-ダッシュボードは [http://127.0.0.1:49321/](http://127.0.0.1:49321/) で開きます。タスクは次の3状態だけを持ちます。
+Open the dashboard at [http://127.0.0.1:49321/](http://127.0.0.1:49321/). A task has only three states:
 
-- **実行前**: ダッシュボードで作成された状態。**Why not now?** または **Do it now** を選べます。
-- **検討中**: **Why not now?** を選んだ状態。**Do it now** を選べます。
-- **実行済み**: **Do it now** によりCodexで実行を開始した状態です。タスク自体の完了を意味するものではありません。
+- **Before**: Created from the dashboard. You can choose **Why not now?** or **Do it now**.
+- **Considering**: Created by choosing **Why not now?**. You can choose **Do it now**.
+- **Executed**: The task was started in Codex through **Do it now**. This does not mean that the task itself is complete.
 
-**Why not now?** は新しいCodexセッションを開きます。このセッションでは元のタスクを実行せず、今着手しない理由、目的、制約、期待する結果、完了条件などを整理して記録します。
+**Why not now?** opens a new Codex session. It does not execute the original task; it helps organize and record why the task is deferred, its goals, constraints, expected results, and completion criteria.
 
-**Do it now** も新しいCodexセッションを開きます。検討中に得られた有用な情報があれば実行文脈として添え、追加の開始確認を待たずにタスクを開始します。
+**Do it now** also opens a new Codex session. It includes useful information gathered while considering the task as execution context, then starts the task without waiting for another confirmation.
 
-起動済みセッションへのリンクはダッシュボードに保存・表示しません。起動時の一時的なURLはCodexへ画面を渡すためだけに使われます。後から戻る場合はCodex本体のタスク一覧を使います。
+The dashboard neither stores nor shows links to launched sessions. A temporary URL is used only to hand the view to Codex when launching. Use Codex's task list to return to a session later.
 
-## Codexから記録する
+## Capture from Codex
 
-Codexでは、短いメモとともにスキルを呼び出せます。
+In Codex, invoke the skill with a short note:
 
 ```text
-$wnn オンボーディングメールを簡潔にすべきか調べる
+$wnn Investigate whether we should simplify the onboarding email
 ```
 
-この入口ではタスクを **検討中** として保存し、元のタスクを実行せずに理由の対話を始めます。対話中に実行したくなった場合も、そのセッションでは実行せず、ダッシュボードの **Do it now** から別の実行セッションを起動します。
+This entry point records a task as **Considering** and starts a conversation about why it is deferred without executing the original task. If you decide to proceed during the conversation, do not execute it in that session; launch a separate execution session from **Do it now** in the dashboard.
 
-## 安全性とプライバシー
+## Safety and privacy
 
-- **Do it now** が選ばれるまで元のタスクを実行しません。
-- 読み取り専用調査も、具体的な範囲を示してユーザーが同意した後だけ行います。
-- 保存するのは目的、理由、制約などの構造化された結果だけです。チャット全文、非公開の推論、認証情報、セッションIDは保存しません。
-- データはデバイス上に保存し、テレメトリーやクラウド同期は使用しません。
+- The original task is not executed until **Do it now** is selected.
+- Even read-only research happens only after the user agrees to a specific scope.
+- Only structured results such as goals, reasons, and constraints are stored. Full chats, private reasoning, credentials, and session IDs are not stored.
+- Data stays on the device; WhyNotNow uses neither telemetry nor cloud sync.
 
-## コントリビューター向け
+## For contributors
 
-開発、テスト、パッケージ化については [AGENTS.md](AGENTS.md) と [プラグイン開発と更新](docs/plugin-development.md) を参照してください。AIとダッシュボードの責務は [AI とGUIの境界](docs/interaction-boundary.md)、対話の詳細は [対話設計](docs/dialogue-design.md) にまとめています。
+For development, testing, and packaging, see [AGENTS.md](AGENTS.md) and [Plugin development and updates](docs/en/plugin-development.md). [AI and dashboard boundaries](docs/en/interaction-boundary.md) describes responsibilities, and [Dialogue design](docs/en/dialogue-design.md) explains the conversation in detail.
