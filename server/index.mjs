@@ -32,8 +32,17 @@ function failureContent(conversationId) {
     : [];
 }
 
-function silent(structuredContent, conversationId) {
-  return { structuredContent, content: failureContent(conversationId) };
+function assistantOnly(value) {
+  return [{
+    type: "text",
+    text: JSON.stringify(value),
+    annotations: { audience: ["assistant"] },
+  }];
+}
+
+function internalResult(value, conversationId) {
+  const failures = failureContent(conversationId);
+  return { content: failures.length ? failures : assistantOnly(value) };
 }
 
 function summary(record) {
@@ -82,7 +91,7 @@ server.registerTool(
   async ({ record }) => {
     const conversationId = `wnn_${randomUUID()}`;
     const queued = persistence.queueCreate(conversationId, record);
-    return silent({ conversation_id: conversationId, revision: queued.revision }, conversationId);
+    return internalResult({ conversation_id: conversationId, revision: queued.revision }, conversationId);
   },
 );
 
@@ -100,7 +109,7 @@ server.registerTool(
   async ({ conversation_id: conversationId, expected_revision: expectedRevision, patch = {}, append_notes = [], append_events = [] }) => {
     try {
       const queued = persistence.queueUpdate(conversationId, { patch, append_notes, append_events }, expectedRevision);
-      return silent({ revision: queued.revision }, conversationId);
+      return internalResult({ revision: queued.revision }, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
@@ -119,7 +128,7 @@ server.registerTool(
     try {
       await persistence.flush(conversationId);
       const record = await getConversation(conversationId);
-      return silent({ conversation: summary(record) }, conversationId);
+      return internalResult({ conversation: summary(record) }, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
@@ -141,7 +150,7 @@ server.registerTool(
     try {
       await persistence.flushAll();
       const result = await listConversations({ view, query });
-      return { structuredContent: { conversations: result.conversations }, content: [] };
+      return internalResult({ conversations: result.conversations });
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
@@ -160,7 +169,7 @@ function registerLifecycleTool(name, action, title, description) {
     async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
       try {
         const queued = persistence.queueUpdate(conversationId, lifecycleCommand(action), expectedRevision);
-        return silent({ revision: queued.revision }, conversationId);
+        return internalResult({ revision: queued.revision }, conversationId);
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
       }
@@ -195,7 +204,7 @@ server.registerTool(
       const queued = persistence.queueUpdate(conversationId, {
         patch: { lifecycle: "archived" }, append_events: [{ type: "archived", data: {} }],
       }, expectedRevision);
-      return silent({ revision: queued.revision }, conversationId);
+      return internalResult({ revision: queued.revision }, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
@@ -256,10 +265,7 @@ server.registerTool(
     });
 
     if (result.action !== "accept" || !result.content) {
-      return {
-        structuredContent: { action: "cancelled", conversation_id: conversationId, revision: expectedRevision },
-        content: [{ type: "text", text: "cancelled" }],
-      };
+      return internalResult({ action: "cancelled", conversation_id: conversationId, revision: expectedRevision });
     }
 
     const { action } = result.content;
@@ -272,8 +278,8 @@ server.registerTool(
     if (!update) return { isError: true, content: [{ type: "text", text: `Unhandled selection: ${action}` }] };
 
     try {
-      const structuredContent = saveSelection(conversationId, expectedRevision, { action, note, ...update });
-      return silent(structuredContent, conversationId);
+      const result = saveSelection(conversationId, expectedRevision, { action, note, ...update });
+      return internalResult(result, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }
@@ -324,8 +330,8 @@ server.registerTool(
     if (!update) return { isError: true, content: [{ type: "text", text: `Unhandled selection: ${action}` }] };
 
     try {
-      const structuredContent = saveSelection(conversationId, expectedRevision, { action, ...update });
-      return silent(structuredContent, conversationId);
+      const result = saveSelection(conversationId, expectedRevision, { action, ...update });
+      return internalResult(result, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }

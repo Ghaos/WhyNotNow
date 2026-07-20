@@ -46,8 +46,8 @@ test("dashboard lists, completes, and reopens conversations with CSRF protection
   const cookie = page.headers.get("set-cookie").split(";")[0];
   const html = await page.text();
   const csrf = html.match(/name="csrf-token" content="([^"]+)"/)[1];
-  assert.match(html, /WhyNotNow 保留箱/);
-  assert.match(html, /Codexで見直す/);
+  assert.match(html, /<h1>WhyNotNow<\/h1>/);
+  assert.match(html, /Review in Codex/);
 
   const openResponse = await fetch(`${dashboard.url}/api/conversations?view=open`);
   const openPayload = await openResponse.json();
@@ -55,6 +55,13 @@ test("dashboard lists, completes, and reopens conversations with CSRF protection
   assert.equal(openPayload.conversations[0].task_text, "GUIから確認する");
   assert.equal(openPayload.conversations[0].review_reason, "今は準備時間がない");
   assert.match(openPayload.conversations[0].revisit_url, /^codex:\/\/new\?prompt=/);
+
+  const japaneseOpenResponse = await fetch(`${dashboard.url}/api/conversations?view=open`, {
+    headers: { "Accept-Language": "ja-JP,ja;q=0.9" },
+  });
+  const japaneseOpenPayload = await japaneseOpenResponse.json();
+  const japanesePrompt = decodeURIComponent(japaneseOpenPayload.conversations[0].revisit_url.split("prompt=")[1]);
+  assert.match(japanesePrompt, /新しい項目は作成しない/);
 
   const complete = await fetch(`${dashboard.url}/api/conversations/${open.conversation_id}/complete`, {
     method: "POST",
@@ -204,9 +211,19 @@ test("revisit links use an existing thread or an encoded non-creating prompt", (
   assert.match(url, /^codex:\/\/new\?prompt=/);
   const prompt = decodeURIComponent(url.split("prompt=")[1]);
   assert.match(prompt, /\$wnn/);
-  assert.match(prompt, /新しい項目は作成しない/);
+  assert.match(prompt, /Do not create a new item/);
   assert.match(prompt, /日本語 & 記号/);
   assert.match(prompt, /改行を含む\nタスク/);
+
+  const japaneseUrl = buildRevisitUrl({
+    source_thread_id: null,
+    title: "日本語 & 記号",
+    task_text: "改行を含む\nタスク",
+    updated_at: "2026-07-18T12:34:56.000Z",
+  }, "ja");
+  const japanesePrompt = decodeURIComponent(japaneseUrl.split("prompt=")[1]);
+  assert.match(japanesePrompt, /新しい項目は作成しない/);
+  assert.match(japanesePrompt, /日本語 & 記号/);
 });
 
 test("a second server reuses an existing compatible dashboard port", async (t) => {
