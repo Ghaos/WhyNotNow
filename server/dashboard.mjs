@@ -316,6 +316,7 @@ export function dashboardHtml({ csrfToken, nonce }) {
         setStatus("");
         try {
           launchWindow.location.href = payload.open_url;
+          setTimeout(() => launchWindow.close(), 1_000);
         } catch {
           launchLink.focus();
         }

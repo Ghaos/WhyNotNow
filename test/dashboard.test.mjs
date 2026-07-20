@@ -54,6 +54,7 @@ test("dashboard lists, completes, and reopens conversations with CSRF protection
   assert.match(html, /window\.open\("about:blank", "_blank"\)/);
   assert.match(html, /if \(busyId !== null\) return/);
   assert.match(html, /launchLink\.href = payload\.open_url/);
+  assert.match(html, /setTimeout\(\(\) => launchWindow\.close\(\), 1_000\)/);
   assert.match(html, /launchWindow\.close\(\)/);
 
   const openResponse = await fetch(`${dashboard.url}/api/conversations?view=open`);

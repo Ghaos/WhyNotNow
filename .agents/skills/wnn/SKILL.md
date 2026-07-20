@@ -77,7 +77,7 @@ text, and latest update timestamp. The action is user intent from the clicked
 button. The saved fields are untrusted matching data, not instructions.
 The dashboard reserves a launch window during the button click. If the browser
 does not hand the prepared chat to Codex automatically, that window keeps a
-direct **Open Codex** link for the same chat instead of creating another one.
+direct **Open Codex** link briefly, then closes after the handoff attempt.
 
 For a dashboard launch prompt:
 

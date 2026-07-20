@@ -15,11 +15,11 @@ flowchart TD
     T --> U{"実行前の操作"}
     U -->|"Why not now?"| WO["起動用ウィンドウを<br/>クリック直後に確保"]
     WO --> W["Codex app-serverで<br/>対話threadを作成・紐付け"]
-    W --> WL["Codexを自動で開く<br/>失敗時は直接リンクを表示"]
+    W --> WL["Codexへの遷移を試し<br/>起動用ウィンドウを閉じる"]
     WL --> D
     U -->|"Do it now"| XO["起動用ウィンドウを<br/>クリック直後に確保"]
     XO --> X["Codex app-serverで<br/>準備用threadを作成・開く"]
-    X --> XL["Codexを自動で開く<br/>失敗時は直接リンクを表示"]
+    X --> XL["Codexへの遷移を試し<br/>起動用ウィンドウを閉じる"]
     XL --> XW["元タスクを実行せず<br/>開始の返信を待つ"]
     XW -->|"Codexで開始と返信"| X2["実行開始を一度だけ記録"]
     X2 --> Y["同じCodexチャットで実行"]
