@@ -45,4 +45,4 @@ WhyNotNow の会話はデバイス上に保存されます。WhyNotNow はテレ
 
 ## コントリビューター向け
 
-開発、テスト、パッケージ化、データの取り扱いについては、[AGENTS.md](AGENTS.md) を参照してください。
+開発、テスト、パッケージ化、データの取り扱いについては、[AGENTS.md](AGENTS.md) と [プラグイン開発と更新](docs/plugin-development.md) を参照してください。
