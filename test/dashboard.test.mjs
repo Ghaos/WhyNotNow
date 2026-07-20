@@ -338,8 +338,12 @@ test("launch prompts keep the selected action separate from matching data", () =
   assert.match(doPrompt, /reply Start/);
   assert.match(doPrompt, /only for matching/);
   const whyPrompt = buildLaunchPrompt(conversation, "why_not_now", "ja");
-  assert.match(whyPrompt, /選択フォームを表示せず/);
+  assert.match(whyPrompt, /今の実行を妨げていることを一つ尋ねてください/);
+  assert.doesNotMatch(whyPrompt, /フォーム|form/i);
   assert.match(whyPrompt, /照合専用/);
+  const englishWhyPrompt = buildLaunchPrompt(conversation, "why_not_now", "en");
+  assert.match(englishWhyPrompt, /Ask one question about what is preventing/);
+  assert.doesNotMatch(englishWhyPrompt, /フォーム|form/i);
 });
 
 test("a second server reuses an existing compatible dashboard port", async (t) => {
