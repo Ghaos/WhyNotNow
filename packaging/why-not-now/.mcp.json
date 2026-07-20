@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "why-not-now": {
+      "command": "node",
+      "args": ["why-not-now-mcp.mjs"],
+      "cwd": "."
+    }
+  }
+}
