@@ -15,8 +15,10 @@ flowchart TD
     T --> U{"実行前の操作"}
     U -->|"Why not now?"| W["Codex app-serverで<br/>対話threadを作成・紐付け"]
     W --> D
-    U -->|"Do it now"| X["Codex app-serverで<br/>実行threadを作成・紐付け"]
-    X --> Y["同じCodexチャットで実行"]
+    U -->|"Do it now"| X["Codex app-serverで<br/>準備用threadを作成・開く"]
+    X --> XW["元タスクを実行せず<br/>開始の返信を待つ"]
+    XW -->|"Codexで開始と返信"| X2["実行開始を一度だけ記録"]
+    X2 --> Y["同じCodexチャットで実行"]
     X -->|"起動失敗"| XC["状態とリンクを戻す"]
 
     T -->|"完了チェック"| V["直前の状態を記録して完了へ"]
@@ -46,9 +48,9 @@ flowchart TD
 
     G -->|"十分な文脈が集まった"| P["現在までの文脈をまとめる"]
     P --> C{"後から次の行動を選び直す"}
-    C -->|"Do it now"| X2["実行開始を一度だけ記録"]
-    X2 -->|"対話threadあり"| Y
-    X2 -->|"対話threadなし"| Y2["別の実行タスクを作成し<br/>threadを紐付け"]
+    C -->|"Do it now"| X3["実行開始を一度だけ記録"]
+    X3 -->|"対話threadあり"| Y
+    X3 -->|"対話threadなし"| Y2["別の実行タスクを作成し<br/>threadを紐付け"]
     C -->|"Why not now?"| D
     C -->|"キャンセル"| F
 

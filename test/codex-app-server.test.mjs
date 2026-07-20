@@ -33,11 +33,13 @@ test("Codex app-server client initializes once and creates, starts, and archives
   const client = new CodexAppServerClient({
     timeoutMs: 1000,
     platform: "linux",
+    appServerCwd: "/home/tester",
     spawnImpl(command, args, options) {
       spawnCount += 1;
       assert.equal(command, "codex");
       assert.deepEqual(args, ["app-server"]);
       assert.equal(options.windowsHide, true);
+      assert.equal(options.cwd, "/home/tester");
       return fakeProcess((request) => {
         requests.push(request);
         if (request.method === "initialize") return { userAgent: "test" };
@@ -65,10 +67,12 @@ test("Codex app-server client starts the Windows command shim through cmd.exe", 
     timeoutMs: 1000,
     platform: "win32",
     env: { ComSpec: "C:\\Windows\\System32\\cmd.exe" },
+    appServerCwd: "C:\\Users\\tester",
     spawnImpl(command, args, options) {
       assert.equal(command, "C:\\Windows\\System32\\cmd.exe");
       assert.deepEqual(args, ["/d", "/s", "/c", "codex.cmd app-server"]);
       assert.equal(options.windowsHide, true);
+      assert.equal(options.cwd, "C:\\Users\\tester");
       return fakeProcess((request) => {
         if (request.method === "initialize") return { userAgent: "test" };
         if (request.method === "thread/start") return { thread: { id: "thread-windows" } };

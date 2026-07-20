@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -16,12 +17,14 @@ export class CodexAppServerClient {
     log = () => {},
     platform = process.platform,
     env = process.env,
+    appServerCwd = homedir(),
   } = {}) {
     this.spawnImpl = spawnImpl;
     this.timeoutMs = timeoutMs;
     this.log = log;
     this.platform = platform;
     this.env = env;
+    this.appServerCwd = appServerCwd;
     this.process = null;
     this.reader = null;
     this.pending = new Map();
@@ -46,6 +49,7 @@ export class CodexAppServerClient {
         ? ["/d", "/s", "/c", "codex.cmd app-server"]
         : ["app-server"];
       child = this.spawnImpl(command, args, {
+        cwd: this.appServerCwd,
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
       });
