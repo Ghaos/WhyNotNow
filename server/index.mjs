@@ -52,6 +52,9 @@ function summary(record) {
     updated_at: record.updated_at,
     title: record.title,
     task_text: record.task_text,
+    source_thread_id: record.source_thread_id ?? null,
+    dialogue_thread_id: record.dialogue_thread_id ?? null,
+    execution_thread_id: record.execution_thread_id ?? null,
     conversation_state: record.conversation_state,
     lifecycle: record.lifecycle,
     decision: record.decision,
@@ -141,7 +144,7 @@ server.registerTool(
     title: "List WhyNotNow conversations",
     description: "Flushes queued changes and returns compact conversation summaries.",
     inputSchema: {
-      view: z.enum(["open", "completed", "archived", "all"]).optional(),
+      view: z.enum(["open", "executing", "completed", "archived", "all"]).optional(),
       query: z.string().optional(),
     },
     annotations: { readOnlyHint: true, openWorldHint: false, destructiveHint: false },
@@ -168,7 +171,9 @@ function registerLifecycleTool(name, action, title, description) {
     },
     async ({ conversation_id: conversationId, expected_revision: expectedRevision }) => {
       try {
-        const queued = persistence.queueUpdate(conversationId, lifecycleCommand(action), expectedRevision);
+        await persistence.flush(conversationId);
+        const current = await getConversation(conversationId);
+        const queued = persistence.queueUpdate(conversationId, lifecycleCommand(action, current), expectedRevision);
         return internalResult({ revision: queued.revision }, conversationId);
       } catch (error) {
         return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
@@ -314,12 +319,50 @@ server.registerTool(
       const queued = persistence.queueUpdate(conversationId, {
         patch: {
           conversation_state: "executing",
+          execution_thread_id: conversation.dialogue_thread_id ?? conversation.execution_thread_id ?? null,
           interpretation: { execution_prompt: executionPrompt },
         },
         append_events: [{ type: "execution_started", data: {} }],
       }, expectedRevision);
       await persistence.flush(conversationId);
       return internalResult({ action: "started", revision: queued.revision }, conversationId);
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
+    }
+  },
+);
+
+server.registerTool(
+  "attach_execution_thread",
+  {
+    title: "Attach a Codex execution thread",
+    description: "Links a created Codex task to an execution that was already reserved.",
+    inputSchema: {
+      conversation_id: z.string().min(1),
+      expected_revision: z.number().int().positive(),
+      thread_id: z.string().min(1).max(500),
+    },
+    annotations: { readOnlyHint: false, openWorldHint: false, destructiveHint: false },
+  },
+  async ({ conversation_id: conversationId, expected_revision: expectedRevision, thread_id: threadId }) => {
+    try {
+      await persistence.flush(conversationId);
+      const conversation = await getConversation(conversationId);
+      if (conversation.conversation_state !== "executing") {
+        return { isError: true, content: [{ type: "text", text: "Begin execution before attaching its Codex task." }] };
+      }
+      if (conversation.execution_thread_id && conversation.execution_thread_id !== threadId) {
+        return { isError: true, content: [{ type: "text", text: "This execution is already linked to another Codex task." }] };
+      }
+      if (conversation.execution_thread_id === threadId) {
+        return internalResult({ action: "already_attached", revision: conversation.revision }, conversationId);
+      }
+      const queued = persistence.queueUpdate(conversationId, {
+        patch: { execution_thread_id: threadId },
+        append_events: [{ type: "execution_thread_attached", data: {} }],
+      }, expectedRevision);
+      await persistence.flush(conversationId);
+      return internalResult({ action: "attached", revision: queued.revision }, conversationId);
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: mutationError(error) }] };
     }

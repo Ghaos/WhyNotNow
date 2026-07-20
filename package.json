@@ -11,7 +11,7 @@
     "build:plugin-server": "node scripts/package-plugin.mjs",
     "package-plugin": "node scripts/package-plugin.mjs",
     "validate-plugin-package": "node scripts/validate-plugin-package.mjs",
-    "check": "node --check .agents/skills/wnn/scripts/store.mjs && node --check .agents/skills/wnn/scripts/whynotnow.mjs && node --check server/persistence.mjs && node --check server/dashboard.mjs && node --check server/index.mjs",
+    "check": "node --check .agents/skills/wnn/scripts/store.mjs && node --check .agents/skills/wnn/scripts/whynotnow.mjs && node --check server/persistence.mjs && node --check server/codex-app-server.mjs && node --check server/dashboard.mjs && node --check server/index.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {

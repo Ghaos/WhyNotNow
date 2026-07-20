@@ -1,7 +1,7 @@
 {
   "name": "why-not-now",
   "version": "0.1.0",
-  "description": "Capture deferred work in Codex and review it from a local inbox.",
+  "description": "Capture deferred work in Codex and manage it from a local dashboard.",
   "author": {
     "name": "WhyNotNow"
   },
@@ -9,8 +9,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Why Not Now",
-    "shortDescription": "Discuss deferred work and review it in a local inbox.",
-    "longDescription": "A deferred-work inbox with a Codex conversation workbench. Capture and explore why not now in Codex, then review, complete, restore, or revisit saved items from a local browser view.",
+    "shortDescription": "Discuss deferred work and track it in a local dashboard.",
+    "longDescription": "A three-state deferred-work dashboard with a Codex conversation workbench. Capture tasks, discuss why not now, run work in a linked Codex chat, and complete or restore items from a local browser view.",
     "developerName": "WhyNotNow",
     "category": "Productivity",
     "capabilities": [
@@ -18,9 +18,9 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $wnn to capture a task and decide what to do next.",
-      "Open the WhyNotNow inbox at http://127.0.0.1:49321/.",
-      "Revisit a saved WhyNotNow conversation."
+      "Use $wnn to capture a task and discuss why it should wait.",
+      "Open the WhyNotNow dashboard at http://127.0.0.1:49321/.",
+      "Start or revisit a saved WhyNotNow task."
     ]
   }
 }

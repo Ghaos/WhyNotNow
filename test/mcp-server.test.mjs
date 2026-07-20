@@ -47,7 +47,7 @@ test("MCP action and plain-text assistance choices persist choices over stdio", 
   assert.deepEqual(tools.tools.map((tool) => tool.name), [
     "create_conversation", "update_conversation", "get_conversation_context", "list_conversation_summaries",
     "complete_conversation", "reopen_conversation", "archive_conversation", "ping", "choose_action",
-    "begin_execution", "cancel_execution_start", "offer_assistance",
+    "begin_execution", "attach_execution_thread", "cancel_execution_start", "offer_assistance",
   ]);
   const result = await client.callTool({ name: "ping", arguments: {} });
   assert.deepEqual(result.content, [{ type: "text", text: "pong" }]);
@@ -150,11 +150,19 @@ test("MCP action and plain-text assistance choices persist choices over stdio", 
   assert.equal(executing.conversation_state, "executing");
   assert.equal(executing.interpretation.execution_prompt, "重複しない実行タスクを作成する");
   assert.equal(executing.events.at(-1).type, "execution_started");
-  const cancelledExecution = await client.callTool({ name: "cancel_execution_start", arguments: {
+  const attachedResult = await client.callTool({ name: "attach_execution_thread", arguments: {
     conversation_id: executionConversation.conversation_id,
     expected_revision: started.revision,
+    thread_id: "thread-execution-123",
   } });
-  assert.deepEqual(internalResult(cancelledExecution), { revision: 3 });
+  const attached = internalResult(attachedResult);
+  assert.deepEqual(attached, { action: "attached", revision: 3 });
+  assert.equal((await getConversation(executionConversation.conversation_id, storeOptions)).execution_thread_id, "thread-execution-123");
+  const cancelledExecution = await client.callTool({ name: "cancel_execution_start", arguments: {
+    conversation_id: executionConversation.conversation_id,
+    expected_revision: attached.revision,
+  } });
+  assert.deepEqual(internalResult(cancelledExecution), { revision: 4 });
   assert.equal((await getConversation(executionConversation.conversation_id, storeOptions)).conversation_state, "active");
 
   const staleResult = await client.callTool({ name: "offer_assistance", arguments: {

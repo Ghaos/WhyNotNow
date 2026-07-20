@@ -8,7 +8,7 @@ export const CONVERSATION_STATES = new Set(["active", "ended", "executing"]);
 export const LIFECYCLES = new Set(["open", "completed", "archived"]);
 export const DECISIONS = new Set(["undecided", "do_now", "not_now"]);
 export const ENRICHMENTS = new Set(["none", "partial", "complete", "failed"]);
-export const CONVERSATION_VIEWS = new Set(["open", "completed", "archived", "all"]);
+export const CONVERSATION_VIEWS = new Set(["open", "executing", "completed", "archived", "all"]);
 const ORIGINS = new Set(["user", "ai_inferred", "ai_research"]);
 const CONFIRMATIONS = new Set(["confirmed", "unconfirmed"]);
 const FOCUS_KINDS = new Set([
@@ -223,6 +223,8 @@ function normalizeRecord(input, { id, revision, createdAt, timestamp } = {}) {
     schema_version: SCHEMA_VERSION,
     conversation_id: id ?? data.conversation_id,
     source_thread_id: stringOrNull(data.source_thread_id),
+    dialogue_thread_id: stringOrNull(data.dialogue_thread_id),
+    execution_thread_id: stringOrNull(data.execution_thread_id),
     revision: revision ?? 1,
     title: stringOrNull(data.title) ?? defaultTitle(taskText),
     task_text: taskText,
@@ -341,6 +343,7 @@ export async function updateConversation(id, input = {}, { expectedRevision, ...
 function matchesView(record, view) {
   if (view === "all") return true;
   if (view === "open") return record.lifecycle === "open" && record.conversation_state !== "executing";
+  if (view === "executing") return record.lifecycle === "open" && record.conversation_state === "executing";
   return record.lifecycle === view;
 }
 
@@ -356,6 +359,8 @@ export function conversationSummary(record) {
     conversation_id: record.conversation_id,
     revision: record.revision,
     source_thread_id: record.source_thread_id,
+    dialogue_thread_id: record.dialogue_thread_id ?? null,
+    execution_thread_id: record.execution_thread_id ?? null,
     title: record.title,
     task_text: record.task_text,
     review_reason: reviewReason(record),
@@ -407,16 +412,30 @@ export async function archiveConversation(id, options = {}) {
   }, { expectedRevision: current.revision, ...options });
 }
 
-export function lifecycleCommand(action) {
+export function lifecycleCommand(action, record = {}) {
   if (action === "complete") {
     return {
       patch: { lifecycle: "completed", conversation_state: "ended" },
-      append_events: [{ type: "completed", data: {} }],
+      append_events: [{
+        type: "completed",
+        data: {
+          previous_conversation_state: record.conversation_state ?? "active",
+          previous_decision: record.decision ?? "not_now",
+        },
+      }],
     };
   }
   if (action === "reopen") {
+    const completedEvent = Array.isArray(record.events)
+      ? [...record.events].reverse().find((event) => event?.type === "completed")
+      : null;
+    const wasExecuting = completedEvent?.data?.previous_conversation_state === "executing";
     return {
-      patch: { lifecycle: "open", conversation_state: "active", decision: "not_now" },
+      patch: {
+        lifecycle: "open",
+        conversation_state: wasExecuting ? "executing" : "active",
+        decision: wasExecuting ? "do_now" : (completedEvent?.data?.previous_decision ?? "not_now"),
+      },
       append_events: [{ type: "reopened", data: {} }],
     };
   }
@@ -425,7 +444,7 @@ export function lifecycleCommand(action) {
 
 export async function completeConversation(id, { expectedRevision, ...options } = {}) {
   const current = await getConversation(id, options);
-  return updateConversation(id, lifecycleCommand("complete"), {
+  return updateConversation(id, lifecycleCommand("complete", current), {
     expectedRevision: expectedRevision ?? current.revision,
     ...options,
   });
@@ -433,7 +452,7 @@ export async function completeConversation(id, { expectedRevision, ...options } 
 
 export async function reopenConversation(id, { expectedRevision, ...options } = {}) {
   const current = await getConversation(id, options);
-  return updateConversation(id, lifecycleCommand("reopen"), {
+  return updateConversation(id, lifecycleCommand("reopen", current), {
     expectedRevision: expectedRevision ?? current.revision,
     ...options,
   });

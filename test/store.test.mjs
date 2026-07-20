@@ -232,7 +232,7 @@ test("lists lifecycle views, transitions records, and reports unreadable files",
     const reopened = await reopenConversation(first.conversation_id, { expectedRevision: completed.revision });
     assert.equal(reopened.lifecycle, "open");
     assert.equal(reopened.conversation_state, "active");
-    assert.equal(reopened.decision, "not_now");
+    assert.equal(reopened.decision, "undecided");
     assert.equal(reopened.events.at(-1).type, "reopened");
 
     await fs.writeFile(path.join(root, "conversations", "broken.json"), "{broken", "utf8");
@@ -250,6 +250,29 @@ test("lists lifecycle views, transitions records, and reports unreadable files",
 
     const all = await listConversations({ view: "all", query: "項目" });
     assert.equal(all.conversations.length, 2);
+  });
+});
+
+test("lists executing records and restores completed work to its previous state", async () => {
+  await withStore(async () => {
+    const created = await createConversation({
+      task_text: "実行中の項目",
+      conversation_state: "executing",
+      decision: "do_now",
+      dialogue_thread_id: "thread-dialogue",
+      execution_thread_id: "thread-execution",
+    });
+    const executing = await listConversations({ view: "executing" });
+    assert.equal(executing.conversations.length, 1);
+    assert.equal(executing.conversations[0].execution_thread_id, "thread-execution");
+    assert.equal((await listConversations({ view: "open" })).conversations.length, 0);
+
+    const completed = await completeConversation(created.conversation_id, { expectedRevision: created.revision });
+    assert.equal(completed.events.at(-1).data.previous_conversation_state, "executing");
+    const reopened = await reopenConversation(created.conversation_id, { expectedRevision: completed.revision });
+    assert.equal(reopened.conversation_state, "executing");
+    assert.equal(reopened.decision, "do_now");
+    assert.equal(reopened.execution_thread_id, "thread-execution");
   });
 });
 

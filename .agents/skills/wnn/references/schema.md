@@ -8,6 +8,10 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
   migrated or loaded.
 - `conversation_id`: generated `wnn_<uuid>` identifier.
 - `source_thread_id`: originating Codex thread when available, otherwise null.
+- `dialogue_thread_id`: latest Codex thread started by the dashboard for a
+  Why-not-now discussion, otherwise null.
+- `execution_thread_id`: Codex thread that is performing the task, otherwise
+  null. Executing dashboard items link to this thread.
 - `revision`: incremented after every successful update.
 - `title`: short display label.
 - `task_text`: current editable memo text; edits overwrite the previous text.
@@ -34,9 +38,9 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
   `conversation_state: active`.
 - Completing an item sets `lifecycle: completed`,
   `conversation_state: ended`, and appends a `completed` event.
-- Restoring a completed item sets `lifecycle: open`,
-  `conversation_state: active`, `decision: not_now`, and appends a `reopened`
-  event.
+- Completing an item records its previous conversation state and decision in
+  the `completed` event. Restoring returns it to that waiting or executing
+  state and appends a `reopened` event.
 - Archiving sets `lifecycle: archived` and appends an `archived` event.
 - Starting the underlying task is reserved atomically before a separate Codex
   task is created. The reservation sets `conversation_state: executing`; a
@@ -44,8 +48,9 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
   create another task. Executing items are excluded from the default open inbox
   view.
 
-Conversation list operations accept `view: open`, `completed`, `archived`, or
-`all`. The default `open` view includes only open, non-executing items.
+Conversation list operations accept `view: open`, `executing`, `completed`,
+`archived`, or `all`. The default `open` view includes only open,
+non-executing items; `executing` includes only open executing items.
 
 ## Reason to do
 

@@ -37,7 +37,7 @@ function usage() {
   whynotnow.mjs create [--input payload.json]
   whynotnow.mjs get <conversation-id>
   whynotnow.mjs update <conversation-id> [--expected-revision n] [--input payload.json]
-  whynotnow.mjs list [--view open|completed|archived|all] [--query text]
+  whynotnow.mjs list [--view open|executing|completed|archived|all] [--query text]
   whynotnow.mjs archive <conversation-id>
   whynotnow.mjs delete <conversation-id> --yes`;
 }
