@@ -51,6 +51,10 @@ test("dashboard lists, completes, and reopens conversations with CSRF protection
   assert.match(html, /Do it now/);
   assert.match(html, /status\.textContent = unreadable \? copy\.unreadable : persistentStatus/);
   assert.match(html, /setStatus\(copy\.launching, "progress"\)/);
+  assert.match(html, /window\.open\("about:blank", "_blank"\)/);
+  assert.match(html, /if \(busyId !== null\) return/);
+  assert.match(html, /launchLink\.href = payload\.open_url/);
+  assert.match(html, /launchWindow\.close\(\)/);
 
   const openResponse = await fetch(`${dashboard.url}/api/conversations?view=open`);
   const openPayload = await openResponse.json();
@@ -188,6 +192,12 @@ test("dashboard prepares Do it now chats without starting execution", async (t) 
   assert.match(calls.find((call) => call[0] === "turn" && call[1] === "thread-1")[2], /reply Start/);
   assert.doesNotMatch(calls.find((call) => call[0] === "turn" && call[1] === "thread-1")[2], /Execute the saved task in this chat/);
   assert.match(calls.find((call) => call[0] === "turn" && call[1] === "thread-2")[2], /Why not now/);
+
+  const repeatedDiscussion = await fetch(`${dashboard.url}/api/conversations/${discuss.conversation_id}/launch`, {
+    method: "POST", headers, body: JSON.stringify({ action: "why_not_now", expected_revision: discuss.revision }),
+  });
+  assert.equal(repeatedDiscussion.status, 200);
+  assert.equal((await repeatedDiscussion.json()).action, "already_prepared");
 
   const repeated = await fetch(`${dashboard.url}/api/conversations/${doNow.conversation_id}/launch`, {
     method: "POST", headers, body: JSON.stringify({ action: "do_now", expected_revision: doNow.revision }),

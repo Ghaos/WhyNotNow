@@ -168,9 +168,9 @@ export function dashboardHtml({ csrfToken, nonce }) {
     const captureSubmit = document.getElementById("capture-submit");
     const language = navigator.languages.some((value) => value.toLowerCase().startsWith("ja")) ? "ja" : "en";
     const copy = language === "ja" ? {
-      pageTitle:"WhyNotNow", subtitle:"実行前、実行中、完了したタスクを見渡す。", before:"実行前", executing:"実行中", completed:"完了", taskLabel:"保留したいタスク", placeholder:"保留したいタスクを追加", add:"追加", unknownDate:"更新日時不明", noCompleted:"完了した項目はありません。", noExecuting:"実行中の項目はありません。", noOpen:"実行前の項目はありません。", reopen:"元の状態へ戻す", complete:"完了にする", untitled:"無題の項目", noReason:"保留理由はまだ整理されていません。", review:"Codexで開く", doNow:"Do it now", whyNotNow:"Why not now?", launching:"Codexを開始しています…", launchFailed:"Codexを開始できませんでした。", refreshFailed:"一覧を更新できませんでした。", unreadable:"読み込めない保存項目があります。", changedElsewhere:"別の場所で更新されました。最新の状態を表示します。", changeFailed:"状態を変更できませんでした。", taskRequired:"タスク本文を入力してください。", addFailed:"項目を追加できませんでした。"
+      pageTitle:"WhyNotNow", subtitle:"実行前、実行中、完了したタスクを見渡す。", before:"実行前", executing:"実行中", completed:"完了", taskLabel:"保留したいタスク", placeholder:"保留したいタスクを追加", add:"追加", unknownDate:"更新日時不明", noCompleted:"完了した項目はありません。", noExecuting:"実行中の項目はありません。", noOpen:"実行前の項目はありません。", reopen:"元の状態へ戻す", complete:"完了にする", untitled:"無題の項目", noReason:"保留理由はまだ整理されていません。", review:"Codexで開く", doNow:"Do it now", whyNotNow:"Why not now?", launching:"Codexを開始しています…", launchWindowTitle:"Codexを開く", launchWindowPreparing:"Codexチャットを準備しています…", launchWindowFallback:"Codexが自動で開かない場合は、下のリンクを押してください。", launchWindowLink:"Codexを開く", popupBlocked:"Codexを開くウィンドウがブロックされました。ポップアップを許可して、もう一度お試しください。", launchFailed:"Codexを開始できませんでした。", refreshFailed:"一覧を更新できませんでした。", unreadable:"読み込めない保存項目があります。", changedElsewhere:"別の場所で更新されました。最新の状態を表示します。", changeFailed:"状態を変更できませんでした。", taskRequired:"タスク本文を入力してください。", addFailed:"項目を追加できませんでした。"
     } : {
-      pageTitle:"WhyNotNow", subtitle:"See tasks before, during, and after execution.", before:"Before", executing:"In progress", completed:"Completed", taskLabel:"Task to defer", placeholder:"Add a task to defer", add:"Add", unknownDate:"Update time unavailable", noCompleted:"There are no completed items.", noExecuting:"There are no tasks in progress.", noOpen:"There are no tasks waiting to start.", reopen:"Restore previous state", complete:"Mark complete", untitled:"Untitled item", noReason:"No reason has been added yet.", review:"Open in Codex", doNow:"Do it now", whyNotNow:"Why not now?", launching:"Starting Codex…", launchFailed:"Could not start Codex.", refreshFailed:"Could not refresh the list.", unreadable:"Some saved items could not be loaded.", changedElsewhere:"This item changed elsewhere. Showing the latest state.", changeFailed:"Could not change the item state.", taskRequired:"Enter a task description.", addFailed:"Could not add the item."
+      pageTitle:"WhyNotNow", subtitle:"See tasks before, during, and after execution.", before:"Before", executing:"In progress", completed:"Completed", taskLabel:"Task to defer", placeholder:"Add a task to defer", add:"Add", unknownDate:"Update time unavailable", noCompleted:"There are no completed items.", noExecuting:"There are no tasks in progress.", noOpen:"There are no tasks waiting to start.", reopen:"Restore previous state", complete:"Mark complete", untitled:"Untitled item", noReason:"No reason has been added yet.", review:"Open in Codex", doNow:"Do it now", whyNotNow:"Why not now?", launching:"Starting Codex…", launchWindowTitle:"Open Codex", launchWindowPreparing:"Preparing the Codex chat…", launchWindowFallback:"If Codex does not open automatically, use the link below.", launchWindowLink:"Open Codex", popupBlocked:"The window for opening Codex was blocked. Allow pop-ups and try again.", launchFailed:"Could not start Codex.", refreshFailed:"Could not refresh the list.", unreadable:"Some saved items could not be loaded.", changedElsewhere:"This item changed elsewhere. Showing the latest state.", changeFailed:"Could not change the item state.", taskRequired:"Enter a task description.", addFailed:"Could not add the item."
     };
     document.documentElement.lang = language;
     document.title = copy.pageTitle;
@@ -283,6 +283,20 @@ export function dashboardHtml({ csrfToken, nonce }) {
     }
 
     async function launch(conversation, action) {
+      if (busyId !== null) return;
+      const launchWindow = window.open("about:blank", "_blank");
+      if (!launchWindow) {
+        setStatus(copy.popupBlocked);
+        return;
+      }
+      const launchMessage = launchWindow.document.createElement("p");
+      const launchLink = launchWindow.document.createElement("a");
+      launchWindow.document.title = copy.launchWindowTitle;
+      launchMessage.textContent = copy.launchWindowPreparing;
+      launchLink.textContent = copy.launchWindowLink;
+      launchLink.hidden = true;
+      launchWindow.document.body.replaceChildren(launchMessage, launchLink);
+      launchWindow.opener = null;
       busyId = conversation.conversation_id;
       setStatus(copy.launching, "progress");
       await refresh();
@@ -296,8 +310,17 @@ export function dashboardHtml({ csrfToken, nonce }) {
         if (!response.ok) throw new Error(copy.launchFailed);
         const payload = await response.json();
         if (!payload.open_url) throw new Error(copy.launchFailed);
-        window.location.href = payload.open_url;
+        launchMessage.textContent = copy.launchWindowFallback;
+        launchLink.href = payload.open_url;
+        launchLink.hidden = false;
+        setStatus("");
+        try {
+          launchWindow.location.href = payload.open_url;
+        } catch {
+          launchLink.focus();
+        }
       } catch (error) {
+        launchWindow.close();
         setStatus(error instanceof Error ? error.message : copy.launchFailed);
       } finally {
         busyId = null;
@@ -604,6 +627,9 @@ export async function startDashboardServer({
           return json(response, 200, { action: "already_started", open_url: buildThreadUrl(current.execution_thread_id) });
         }
         if (body.action === "do_now" && current.lifecycle === "open" && current.conversation_state !== "executing" && current.decision === "do_now" && current.dialogue_thread_id) {
+          return json(response, 200, { action: "already_prepared", open_url: buildThreadUrl(current.dialogue_thread_id) });
+        }
+        if (body.action === "why_not_now" && current.lifecycle === "open" && current.conversation_state !== "executing" && current.decision === "not_now" && current.dialogue_thread_id) {
           return json(response, 200, { action: "already_prepared", open_url: buildThreadUrl(current.dialogue_thread_id) });
         }
         if (current.lifecycle !== "open" || current.conversation_state === "executing") {
