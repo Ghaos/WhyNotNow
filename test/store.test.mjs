@@ -5,13 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
-  archiveConversation,
-  completeConversation,
+  conversationsDirectory,
   createConversation,
   getConversation,
   listConversations,
   normalizeUrlEntry,
-  reopenConversation,
   resolveDataRoot,
   SCHEMA_VERSION,
   updateConversation,
@@ -29,10 +27,7 @@ function runCli(args, { env, input = "" } = {}) {
     child.stdout.on("data", (chunk) => { stdout += chunk; });
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(`CLI exited with ${code}: ${stderr}`));
-    });
+    child.on("close", (code) => code === 0 ? resolve({ stdout, stderr }) : reject(new Error(`CLI exited with ${code}: ${stderr}`)));
     child.stdin.end(input);
   });
 }
@@ -41,101 +36,82 @@ async function withStore(run) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "whynotnow-test-"));
   const previous = process.env.WHYNOTNOW_HOME;
   process.env.WHYNOTNOW_HOME = root;
-  try {
-    await run(root);
-  } finally {
+  try { await run(root); }
+  finally {
     if (previous === undefined) delete process.env.WHYNOTNOW_HOME;
     else process.env.WHYNOTNOW_HOME = previous;
     await fs.rm(root, { recursive: true, force: true });
   }
 }
 
-test("uses the explicit data directory override", () => {
-  assert.equal(resolveDataRoot({ env: { WHYNOTNOW_HOME: "./custom" } }), path.resolve("./custom"));
+test("uses a fresh v4 storage directory", () => {
+  const options = { env: { WHYNOTNOW_HOME: "./custom" } };
+  assert.equal(resolveDataRoot(options), path.resolve("./custom"));
+  assert.equal(conversationsDirectory(options), path.join(path.resolve("./custom"), "conversations-v4"));
 });
 
-test("creates an incomplete conversation and updates it once per turn", async () => {
-  await withStore(async () => {
-    const created = await createConversation({ task_text: "Taskmasterを試す" });
-    assert.equal(created.schema_version, SCHEMA_VERSION);
-    assert.equal(created.revision, 1);
-    assert.equal(created.conversation_state, "active");
-    assert.deepEqual(created.reasons_for, []);
-    assert.deepEqual(created.related_urls, []);
-
-    const updated = await updateConversation(created.conversation_id, {
-      patch: {
-        decision: "not_now",
-        enrichment: "partial",
-        reasons_for: [{
-          text: "ゲーム開発に組み込めれば便利そう",
-          origin: "user",
-          confirmation: "confirmed"
-        }],
-        why_not_now: {
-          reasons: [{
-            text: "大規模で難しそう",
-            origin: "user",
-            confirmation: "confirmed",
-            solvable: true,
-            solutions: ["最小構成だけ試す"],
-            children: []
-          }]
-        }
-      },
-      append_events: [{ type: "decision_updated", data: { decision: "not_now" } }]
-    }, { expectedRevision: 1 });
-
-    assert.equal(updated.revision, 2);
-    assert.equal(updated.reasons_for[0].origin, "user");
-    assert.equal(updated.why_not_now.reasons[0].solutions[0], "最小構成だけ試す");
-    assert.equal(updated.events.at(-1).type, "decision_updated");
-  });
-});
-
-test("stores structured dialogue context without retaining private reasoning", async () => {
+test("creates direct captures as considering and stores structured context", async () => {
   await withStore(async () => {
     const created = await createConversation({
       task_text: "導入を検討する",
+      source_thread_id: "must-not-survive",
       interpretation: {
         goal: "導入の可否を判断する",
-        current_situation: "優先度と完了条件が不明",
-        desired_outcome: "小さく試せる範囲を決める",
-        completion_conditions: ["対応環境が分かる", "試行範囲を決める"],
-        hidden_reasoning: "保存してはいけない",
+        current_situation: "優先度が不明",
+        desired_outcome: "試行範囲を決める",
+        completion_conditions: ["対応環境が分かる"],
+        execution_prompt: "must-not-survive",
+        hidden_reasoning: "must-not-survive",
       },
       dialogue: {
-        asked_reason_for: true,
-        active_focus: {
-          kind: "constraint",
-          reason_id: "against_current-priority",
-          summary: "優先度が低いため開始条件を整理している",
-        },
-        covered_topics: ["priority", "constraint", "priority", "unknown"],
-        open_threads: ["次に見直す条件を決める"],
-        private_reasoning: "保存してはいけない",
+        active_focus: { kind: "constraint", summary: "準備時間がない" },
+        covered_topics: ["constraint", "unknown"],
+        private_reasoning: "must-not-survive",
       },
     });
-
-    assert.equal(created.schema_version, 3);
-    assert.equal(created.interpretation.current_situation, "優先度と完了条件が不明");
-    assert.deepEqual(created.interpretation.completion_conditions, ["対応環境が分かる", "試行範囲を決める"]);
+    assert.equal(created.schema_version, SCHEMA_VERSION);
+    assert.equal(created.status, "considering");
+    assert.equal("source_thread_id" in created, false);
+    assert.equal("events" in created, false);
+    assert.equal("execution_prompt" in created.interpretation, false);
     assert.equal("hidden_reasoning" in created.interpretation, false);
-    assert.deepEqual(created.dialogue.covered_topics, ["priority", "constraint"]);
-    assert.equal(created.dialogue.active_focus.kind, "constraint");
     assert.equal("private_reasoning" in created.dialogue, false);
+    assert.deepEqual(created.dialogue.covered_topics, ["constraint"]);
+  });
+});
 
+test("updates structured information and append-only notes without transcripts", async () => {
+  await withStore(async () => {
+    const created = await createConversation({ task_text: "Taskmasterを試す" });
     const updated = await updateConversation(created.conversation_id, {
       patch: {
-        dialogue: {
-          active_focus: { kind: "completion_condition", reason_id: null, summary: "最小の完了条件を確認する" },
-          open_threads: ["最小の完了条件を確認する"],
-        },
+        enrichment: "partial",
+        transcript: [{ role: "user", content: "must-not-survive" }],
+        reasons_for: [{ text: "便利そう", origin: "user", confirmation: "confirmed" }],
+        why_not_now: { reasons: [{ text: "難しそう", origin: "user", confirmation: "confirmed", solutions: ["最小構成で試す"] }] },
       },
-    }, { expectedRevision: created.revision });
+      append_notes: [{ text: "公式要件を確認した", origin: "ai_research" }],
+    }, { expectedRevision: 1 });
+    assert.equal(updated.revision, 2);
+    assert.equal(updated.reasons_for[0].origin, "user");
+    assert.deepEqual(updated.why_not_now.reasons[0].solutions, ["最小構成で試す"]);
+    assert.equal(updated.notes[0].text, "公式要件を確認した");
+    assert.equal("transcript" in updated, false);
+  });
+});
 
-    assert.equal(updated.dialogue.active_focus.kind, "completion_condition");
-    assert.deepEqual(updated.dialogue.open_threads, ["最小の完了条件を確認する"]);
+test("lists the three statuses and compact summaries without session links", async () => {
+  await withStore(async () => {
+    const before = await createConversation({ task_text: "実行前", status: "before" });
+    await createConversation({ task_text: "検討中" });
+    await createConversation({ task_text: "実行済み", status: "executed" });
+    const listed = await listConversations({ view: "before" });
+    assert.equal(listed.conversations.length, 1);
+    assert.equal(listed.conversations[0].conversation_id, before.conversation_id);
+    assert.equal(listed.conversations[0].status, "before");
+    assert.equal("execution_url" in listed.conversations[0], false);
+    assert.equal("dialogue_thread_id" in listed.conversations[0], false);
+    assert.equal((await listConversations({ view: "all" })).conversations.length, 3);
   });
 });
 
@@ -145,147 +121,42 @@ test("rejects stale revisions without overwriting the record", async () => {
     await updateConversation(created.conversation_id, { patch: { title: "更新済み" } }, { expectedRevision: 1 });
     await assert.rejects(
       updateConversation(created.conversation_id, { patch: { title: "古い更新" } }, { expectedRevision: 1 }),
-      (error) => error.code === "REVISION_CONFLICT"
+      (error) => error.code === "REVISION_CONFLICT",
     );
     assert.equal((await getConversation(created.conversation_id)).title, "更新済み");
   });
 });
 
-test("overwrites editable text and discards unsupported transcript fields", async () => {
-  await withStore(async () => {
-    const created = await createConversation({
-      task_text: "最初の文面",
-      delegation: { destination: "unused" },
-      execution: { destination: "unused" },
-      last_processed_at: "2020-01-01T00:00:00.000Z",
-      transcript: [{ role: "user", content: "保存してはいけない会話全文" }]
-    });
-    assert.equal("transcript" in created, false);
-    assert.equal("delegation" in created, false);
-    assert.equal("execution" in created, false);
-    assert.equal("last_processed_at" in created, false);
-
-    const updated = await updateConversation(created.conversation_id, {
-      patch: {
-        task_text: "書き直した文面",
-        transcript: [{ role: "assistant", content: "これも保存しない" }]
-      }
-    }, { expectedRevision: 1 });
-    assert.equal(updated.task_text, "書き直した文面");
-    assert.equal("transcript" in updated, false);
-  });
-});
-
 test("normalizes and deduplicates related URLs", async () => {
-  const normalized = normalizeUrlEntry({
-    url: "https://user:secret@example.com/path?utm_source=x&topic=ai&access_token=secret#section",
-    label: "Example"
-  });
+  const normalized = normalizeUrlEntry({ url: "https://user:secret@example.com/path?utm_source=x&topic=ai&access_token=secret#section" });
   assert.equal(normalized.url, "https://example.com/path?topic=ai");
-
   await withStore(async () => {
-    const created = await createConversation({
-      task_text: "URLテスト",
-      related_urls: [
-        "https://example.com/path?utm_source=a",
-        "https://example.com/path?utm_source=b"
-      ]
-    });
+    const created = await createConversation({ task_text: "URL", related_urls: ["https://example.com/?utm_source=a", "https://example.com/?utm_source=b"] });
     assert.equal(created.related_urls.length, 1);
   });
 });
 
-test("accepts JSON through the CLI and lists the saved conversation", async () => {
+test("CLI creates and lists the new views", async () => {
   await withStore(async (root) => {
     const env = { ...process.env, WHYNOTNOW_HOME: root };
-    const createdResult = await runCli(["create"], {
-      env,
-      input: JSON.stringify({
-        task_text: "CLIから作成",
-        reasons_for: [{ text: "役に立ちそう", origin: "user", confirmation: "confirmed" }]
-      })
-    });
-    const created = JSON.parse(createdResult.stdout);
-    assert.match(created.conversation_id, /^wnn_/);
-
-    const listResult = await runCli(["list", "--view", "open"], { env });
-    const listed = JSON.parse(listResult.stdout);
-    assert.equal(listed.conversations.length, 1);
+    const created = JSON.parse((await runCli(["create"], { env, input: JSON.stringify({ task_text: "CLIから作成" }) })).stdout);
+    assert.equal(created.status, "considering");
+    const listed = JSON.parse((await runCli(["list", "--view", "considering"], { env })).stdout);
     assert.equal(listed.conversations[0].task_text, "CLIから作成");
   });
 });
 
-test("lists lifecycle views, transitions records, and reports unreadable files", async () => {
+test("ignores the legacy directory and rejects wrong schemas in v4", async () => {
   await withStore(async (root) => {
-    const first = await createConversation({ task_text: "表示する項目" });
-    const second = await createConversation({ task_text: "隠す項目" });
-    await archiveConversation(second.conversation_id);
-    const completed = await completeConversation(first.conversation_id, { expectedRevision: first.revision });
-    assert.equal(completed.lifecycle, "completed");
-    assert.equal(completed.conversation_state, "ended");
-    assert.equal(completed.events.at(-1).type, "completed");
+    await fs.mkdir(path.join(root, "conversations"), { recursive: true });
+    await fs.writeFile(path.join(root, "conversations", "legacy.json"), JSON.stringify({ schema_version: 3 }), "utf8");
+    assert.equal((await listConversations({ view: "all" })).errors.length, 0);
 
-    const completedView = await listConversations({ view: "completed" });
-    assert.equal(completedView.conversations.length, 1);
-    assert.equal(completedView.conversations[0].revision, 2);
-
-    const reopened = await reopenConversation(first.conversation_id, { expectedRevision: completed.revision });
-    assert.equal(reopened.lifecycle, "open");
-    assert.equal(reopened.conversation_state, "active");
-    assert.equal(reopened.decision, "undecided");
-    assert.equal(reopened.events.at(-1).type, "reopened");
-
-    await fs.writeFile(path.join(root, "conversations", "broken.json"), "{broken", "utf8");
-    await fs.writeFile(path.join(root, "conversations", "legacy.json"), JSON.stringify({ schema_version: 2 }), "utf8");
-
-    const visible = await listConversations();
-    assert.equal(visible.conversations.length, 1);
-    assert.equal(visible.conversations[0].conversation_id, first.conversation_id);
-    assert.equal(visible.conversations[0].review_reason, null);
-    assert.equal(visible.errors.length, 2);
-    assert.deepEqual(
-      new Set(visible.errors.map((error) => error.code)),
-      new Set(["CORRUPT_RECORD", "UNSUPPORTED_SCHEMA"]),
-    );
-
-    const all = await listConversations({ view: "all", query: "項目" });
-    assert.equal(all.conversations.length, 2);
-  });
-});
-
-test("lists executing records and restores completed work to its previous state", async () => {
-  await withStore(async () => {
-    const created = await createConversation({
-      task_text: "実行中の項目",
-      conversation_state: "executing",
-      decision: "do_now",
-      dialogue_thread_id: "thread-dialogue",
-      execution_thread_id: "thread-execution",
-    });
-    const executing = await listConversations({ view: "executing" });
-    assert.equal(executing.conversations.length, 1);
-    assert.equal(executing.conversations[0].execution_thread_id, "thread-execution");
-    assert.equal((await listConversations({ view: "open" })).conversations.length, 0);
-
-    const completed = await completeConversation(created.conversation_id, { expectedRevision: created.revision });
-    assert.equal(completed.events.at(-1).data.previous_conversation_state, "executing");
-    const reopened = await reopenConversation(created.conversation_id, { expectedRevision: completed.revision });
-    assert.equal(reopened.conversation_state, "executing");
-    assert.equal(reopened.decision, "do_now");
-    assert.equal(reopened.execution_thread_id, "thread-execution");
-  });
-});
-
-test("rejects legacy schema records without migrating them", async () => {
-  await withStore(async (root) => {
-    const created = await createConversation({ task_text: "旧形式" });
-    const file = path.join(root, "conversations", `${created.conversation_id}.json`);
-    const legacy = JSON.parse(await fs.readFile(file, "utf8"));
-    legacy.schema_version = 2;
-    await fs.writeFile(file, JSON.stringify(legacy), "utf8");
-    await assert.rejects(
-      getConversation(created.conversation_id),
-      (error) => error.code === "UNSUPPORTED_SCHEMA",
-    );
+    const created = await createConversation({ task_text: "新形式" });
+    const file = path.join(root, "conversations-v4", `${created.conversation_id}.json`);
+    const record = JSON.parse(await fs.readFile(file, "utf8"));
+    record.schema_version = 3;
+    await fs.writeFile(file, JSON.stringify(record), "utf8");
+    await assert.rejects(getConversation(created.conversation_id), (error) => error.code === "UNSUPPORTED_SCHEMA");
   });
 });

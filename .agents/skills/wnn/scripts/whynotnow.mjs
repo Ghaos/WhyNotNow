@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { promises as fs } from "node:fs";
 import {
-  archiveConversation,
   createConversation,
   deleteConversation,
   getConversation,
@@ -37,8 +36,7 @@ function usage() {
   whynotnow.mjs create [--input payload.json]
   whynotnow.mjs get <conversation-id>
   whynotnow.mjs update <conversation-id> [--expected-revision n] [--input payload.json]
-  whynotnow.mjs list [--view open|executing|completed|archived|all] [--query text]
-  whynotnow.mjs archive <conversation-id>
+  whynotnow.mjs list [--view before|considering|executed|all] [--query text]
   whynotnow.mjs delete <conversation-id> --yes`;
 }
 
@@ -63,13 +61,9 @@ async function main() {
   }
   if (command === "list") {
     return output(await listConversations({
-      view: flagValue(args, "--view") ?? "open",
+      view: flagValue(args, "--view") ?? "considering",
       query: flagValue(args, "--query") ?? "",
     }));
-  }
-  if (command === "archive") {
-    if (!args[0]) throw new Error("archive requires a conversation id");
-    return output(await archiveConversation(args[0]));
   }
   if (command === "delete") {
     if (!args[0]) throw new Error("delete requires a conversation id");

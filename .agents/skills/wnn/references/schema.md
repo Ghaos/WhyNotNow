@@ -4,24 +4,16 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 
 ## Top-level fields
 
-- `schema_version`: integer, currently `3`. Older development records are not
-  migrated or loaded.
+- `schema_version`: integer, currently `4`. Version 4 uses a fresh
+  `conversations-v4` storage directory. Older records are not migrated or read.
 - `conversation_id`: generated `wnn_<uuid>` identifier.
-- `source_thread_id`: originating Codex thread when available, otherwise null.
-- `dialogue_thread_id`: latest Codex thread started by the dashboard for a
-  Why-not-now discussion, otherwise null.
-- `execution_thread_id`: Codex thread that is performing the task, otherwise
-  null. Executing dashboard items link to this thread.
 - `revision`: incremented after every successful update.
 - `title`: short display label.
 - `task_text`: current editable memo text; edits overwrite the previous text.
-- `conversation_state`: `active`, `ended`, or `executing`.
-- `lifecycle`: `open`, `completed`, or `archived`.
-- `decision`: `undecided`, `do_now`, or `not_now`.
+- `status`: `before`, `considering`, or `executed`.
 - `enrichment`: `none`, `partial`, `complete`, or `failed`.
 - `interpretation`: the current structured understanding: `goal`,
-  `current_situation`, `desired_outcome`, `completion_conditions`, and optional
-  `execution_prompt`.
+  `current_situation`, `desired_outcome`, and `completion_conditions`.
 - `reasons_for`: motivations or evidence that make the task worth doing.
 - `why_not_now`: nested reason tree plus unresolved questions.
 - `related_urls`: normalized HTTP/HTTPS references. An empty array is valid.
@@ -29,28 +21,26 @@ One JSON document represents one WhyNotNow dialogue, not a raw chat transcript. 
 - `project_refs`: confirmed related local projects.
 - `dialogue`: interaction state: whether the value question was already asked,
   the active focus, covered topics, and concise open threads.
-- `events`: append-only decision and lifecycle events, never the full conversation.
+- `assistance_choices`: append-only structured consent records for bounded,
+  read-only research offers.
 - `created_at`, `updated_at`: UTC ISO-8601 timestamps.
 
-## Lifecycle
+Session IDs, session URLs, execution prompts, lifecycle events, transcripts,
+and private reasoning are never stored.
 
-- New deferred items use `lifecycle: open` and normally
-  `conversation_state: active`.
-- Completing an item sets `lifecycle: completed`,
-  `conversation_state: ended`, and appends a `completed` event.
-- Completing an item records its previous conversation state and decision in
-  the `completed` event. Restoring returns it to that waiting or executing
-  state and appends a `reopened` event.
-- Archiving sets `lifecycle: archived` and appends an `archived` event.
-- Starting the underlying task is reserved atomically before a separate Codex
-  task is created. The reservation sets `conversation_state: executing`; a
-  repeated start attempt reports that execution already started and does not
-  create another task. Executing items are excluded from the default open inbox
-  view.
+## Status
 
-Conversation list operations accept `view: open`, `executing`, `completed`,
-`archived`, or `all`. The default `open` view includes only open,
-non-executing items; `executing` includes only open executing items.
+- Dashboard captures start as `before` and offer **Why not now?** and
+  **Do it now**.
+- Direct `$wnn` captures and successful **Why not now?** launches use
+  `considering`; only **Do it now** is available in the dashboard.
+- A successful **Do it now** launch uses `executed`. This means execution was
+  started, not that the underlying work was completed.
+- MCP dialogue updates cannot change `status`; the dashboard owns transitions.
+
+Conversation list operations accept `view: before`, `considering`, `executed`,
+or `all`. The MCP default is `considering`; the dashboard requests each of the
+three explicit views.
 
 ## Reason to do
 
@@ -120,19 +110,21 @@ Strip embedded credentials, fragments, and common tracking parameters. Preserve 
 
 ## Update payload
 
-Use recursive JSON merge-patch semantics for `patch`; arrays replace current arrays. Use `append_notes` and `append_events` for append-only data.
+Use recursive JSON merge-patch semantics for `patch`; arrays replace current
+arrays. Use `append_notes` for append-only user-visible notes. The MCP update
+tool ignores `status` even if supplied.
 
 ```json
 {
   "patch": {
-    "conversation_state": "active",
-    "decision": "not_now",
+    "interpretation": { "current_situation": "The completion condition is unclear" },
     "reasons_for": [],
     "why_not_now": { "reasons": [], "unresolved_questions": [] }
   },
-  "append_notes": [],
-  "append_events": []
+  "append_notes": []
 }
 ```
 
-Immutable or server-managed fields (`schema_version`, `conversation_id`, `revision`, `created_at`, timestamps) are ignored when supplied in a patch.
+Immutable or server-managed fields (`schema_version`, `conversation_id`,
+`revision`, `created_at`, timestamps, `notes`, and `assistance_choices`) are
+ignored when supplied in a patch.

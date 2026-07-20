@@ -49,13 +49,13 @@ out/why-not-now/
 
 各会話は、スキルのインストール先とは別のローカル JSON レコードとして保存される。
 
-- Windows: `%LOCALAPPDATA%\\WhyNotNow\\conversations`
-- macOS: `~/Library/Application Support/WhyNotNow/conversations`
-- Linux: `${XDG_DATA_HOME:-~/.local/share}/WhyNotNow/conversations`
+- Windows: `%LOCALAPPDATA%\\WhyNotNow\\conversations-v4`
+- macOS: `~/Library/Application Support/WhyNotNow/conversations-v4`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/WhyNotNow/conversations-v4`
 
 テストでは、一時データを分離するために `WHYNOTNOW_HOME` を使う。
 
-現在の会話スキーマはバージョン 3 である。以前の開発用スキーマはリリースされていないため、ストレージ層は移行パスを実装していない。
+現在の会話スキーマはバージョン 4 である。以前のスキーマは別の保存領域に残し、移行も読み込みも行わない。
 
 `scripts/whynotnow.mjs` は、開発と復旧のためのユーティリティである。UTF-8 JSON 入力または標準入力から `create` と `update` のペイロードを受け取る。
 

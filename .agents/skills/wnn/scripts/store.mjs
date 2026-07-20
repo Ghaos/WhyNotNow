@@ -3,14 +3,13 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const SCHEMA_VERSION = 3;
-export const CONVERSATION_STATES = new Set(["active", "ended", "executing"]);
-export const LIFECYCLES = new Set(["open", "completed", "archived"]);
-export const DECISIONS = new Set(["undecided", "do_now", "not_now"]);
+export const SCHEMA_VERSION = 4;
+export const STATUSES = new Set(["before", "considering", "executed"]);
 export const ENRICHMENTS = new Set(["none", "partial", "complete", "failed"]);
-export const CONVERSATION_VIEWS = new Set(["open", "executing", "completed", "archived", "all"]);
+export const CONVERSATION_VIEWS = new Set([...STATUSES, "all"]);
 const ORIGINS = new Set(["user", "ai_inferred", "ai_research"]);
 const CONFIRMATIONS = new Set(["confirmed", "unconfirmed"]);
+const ASSISTANCE_ACTIONS = new Set(["research", "decline"]);
 const FOCUS_KINDS = new Set([
   "reason_for", "reason_against", "background", "priority", "constraint",
   "desired_outcome", "completion_condition", "assistance", "summary",
@@ -71,7 +70,7 @@ export function resolveDataRoot({ env = process.env, platform = process.platform
 }
 
 export function conversationsDirectory(options = {}) {
-  return path.join(resolveDataRoot(options), "conversations");
+  return path.join(resolveDataRoot(options), "conversations-v4");
 }
 
 export function isConversationId(id) {
@@ -174,13 +173,16 @@ function normalizeNote(value, timestamp) {
   };
 }
 
-function normalizeEvent(value, timestamp) {
-  const event = jsonObject(value) ?? {};
+function normalizeAssistance(value, timestamp) {
+  const choice = jsonObject(value) ?? {};
   return {
-    event_id: typeof event.event_id === "string" && event.event_id ? event.event_id : `evt_${randomUUID()}`,
-    type: stringOrNull(event.type) ?? "updated",
-    occurred_at: stringOrNull(event.occurred_at) ?? timestamp,
-    data: jsonObject(event.data) ?? {},
+    id: typeof choice.id === "string" && choice.id ? choice.id : `assist_${randomUUID()}`,
+    reason_id: stringOrNull(choice.reason_id),
+    problem_summary: stringOrNull(choice.problem_summary) ?? "",
+    proposed_scope: stringOrNull(choice.proposed_scope) ?? "",
+    expected_result: stringOrNull(choice.expected_result) ?? "",
+    action: enumValue(choice.action, ASSISTANCE_ACTIONS, "decline"),
+    created_at: stringOrNull(choice.created_at) ?? timestamp,
   };
 }
 
@@ -222,22 +224,16 @@ function normalizeRecord(input, { id, revision, createdAt, timestamp } = {}) {
   return {
     schema_version: SCHEMA_VERSION,
     conversation_id: id ?? data.conversation_id,
-    source_thread_id: stringOrNull(data.source_thread_id),
-    dialogue_thread_id: stringOrNull(data.dialogue_thread_id),
-    execution_thread_id: stringOrNull(data.execution_thread_id),
     revision: revision ?? 1,
     title: stringOrNull(data.title) ?? defaultTitle(taskText),
     task_text: taskText,
-    conversation_state: enumValue(data.conversation_state, CONVERSATION_STATES, "active"),
-    lifecycle: enumValue(data.lifecycle, LIFECYCLES, "open"),
-    decision: enumValue(data.decision, DECISIONS, "undecided"),
+    status: enumValue(data.status, STATUSES, "considering"),
     enrichment: enumValue(data.enrichment, ENRICHMENTS, "none"),
     interpretation: {
       goal: stringOrNull(interpretation.goal),
       current_situation: stringOrNull(interpretation.current_situation),
       desired_outcome: stringOrNull(interpretation.desired_outcome),
       completion_conditions: stringArray(interpretation.completion_conditions),
-      execution_prompt: stringOrNull(interpretation.execution_prompt),
     },
     reasons_for: Array.isArray(data.reasons_for)
       ? data.reasons_for.map((reason) => normalizeReasonFor(reason, timestamp))
@@ -250,6 +246,9 @@ function normalizeRecord(input, { id, revision, createdAt, timestamp } = {}) {
     },
     related_urls: normalizeUrls(data.related_urls, timestamp),
     notes: Array.isArray(data.notes) ? data.notes.map((note) => normalizeNote(note, timestamp)) : [],
+    assistance_choices: Array.isArray(data.assistance_choices)
+      ? data.assistance_choices.map((choice) => normalizeAssistance(choice, timestamp))
+      : [],
     project_refs: Array.isArray(data.project_refs) ? data.project_refs.map(normalizeProject) : [],
     dialogue: {
       asked_reason_for: dialogue.asked_reason_for === true,
@@ -257,7 +256,6 @@ function normalizeRecord(input, { id, revision, createdAt, timestamp } = {}) {
       covered_topics: enumArray(dialogue.covered_topics, DIALOGUE_TOPICS),
       open_threads: stringArray(dialogue.open_threads),
     },
-    events: Array.isArray(data.events) ? data.events.map((event) => normalizeEvent(event, timestamp)) : [],
     created_at: createdAt ?? stringOrNull(data.created_at) ?? timestamp,
     updated_at: timestamp,
   };
@@ -296,7 +294,6 @@ export async function createConversation(input = {}, { id: suppliedId, ...option
   const id = suppliedId ?? `wnn_${randomUUID()}`;
   assertConversationId(id);
   const record = normalizeRecord(input, { id, revision: 1, createdAt: timestamp, timestamp });
-  record.events.push(normalizeEvent({ type: "created", data: {} }, timestamp));
   await ensureDirectory(options);
   await writeAtomic(conversationPath(id, options), record);
   return record;
@@ -316,7 +313,7 @@ export async function updateConversation(id, input = {}, { expectedRevision, ...
   }
   const command = jsonObject(input) ?? {};
   const protectedKeys = new Set([
-    "schema_version", "conversation_id", "revision", "created_at", "updated_at", "events", "notes",
+    "schema_version", "conversation_id", "revision", "created_at", "updated_at", "notes", "assistance_choices",
   ]);
   const patch = jsonObject(command.patch) ?? {};
   for (const key of protectedKeys) delete patch[key];
@@ -326,9 +323,11 @@ export async function updateConversation(id, input = {}, { expectedRevision, ...
     ...(Array.isArray(current.notes) ? current.notes : []),
     ...(Array.isArray(command.append_notes) ? command.append_notes.map((note) => normalizeNote(note, timestamp)) : []),
   ];
-  merged.events = [
-    ...(Array.isArray(current.events) ? current.events : []),
-    ...(Array.isArray(command.append_events) ? command.append_events.map((event) => normalizeEvent(event, timestamp)) : []),
+  merged.assistance_choices = [
+    ...(Array.isArray(current.assistance_choices) ? current.assistance_choices : []),
+    ...(Array.isArray(command.append_assistance)
+      ? command.append_assistance.map((choice) => normalizeAssistance(choice, timestamp))
+      : []),
   ];
   const record = normalizeRecord(merged, {
     id: current.conversation_id,
@@ -341,10 +340,7 @@ export async function updateConversation(id, input = {}, { expectedRevision, ...
 }
 
 function matchesView(record, view) {
-  if (view === "all") return true;
-  if (view === "open") return record.lifecycle === "open" && record.conversation_state !== "executing";
-  if (view === "executing") return record.lifecycle === "open" && record.conversation_state === "executing";
-  return record.lifecycle === view;
+  return view === "all" || record.status === view;
 }
 
 function reviewReason(record) {
@@ -358,15 +354,10 @@ export function conversationSummary(record) {
   return {
     conversation_id: record.conversation_id,
     revision: record.revision,
-    source_thread_id: record.source_thread_id,
-    dialogue_thread_id: record.dialogue_thread_id ?? null,
-    execution_thread_id: record.execution_thread_id ?? null,
     title: record.title,
     task_text: record.task_text,
     review_reason: reviewReason(record),
-    conversation_state: record.conversation_state,
-    lifecycle: record.lifecycle,
-    decision: record.decision,
+    status: record.status,
     enrichment: record.enrichment,
     reasons_for_count: Array.isArray(record.reasons_for) ? record.reasons_for.length : 0,
     reasons_against_count: Array.isArray(record.why_not_now?.reasons) ? record.why_not_now.reasons.length : 0,
@@ -375,7 +366,7 @@ export function conversationSummary(record) {
   };
 }
 
-export async function listConversations({ view = "open", query = "", ...options } = {}) {
+export async function listConversations({ view = "considering", query = "", ...options } = {}) {
   if (!CONVERSATION_VIEWS.has(view)) throw new Error(`Invalid conversation view: ${view}`);
   await ensureDirectory(options);
   const names = await fs.readdir(conversationsDirectory(options));
@@ -402,60 +393,6 @@ export async function listConversations({ view = "open", query = "", ...options 
     conversations: records.map(conversationSummary),
     errors,
   };
-}
-
-export async function archiveConversation(id, options = {}) {
-  const current = await getConversation(id, options);
-  return updateConversation(id, {
-    patch: { lifecycle: "archived" },
-    append_events: [{ type: "archived", data: {} }],
-  }, { expectedRevision: current.revision, ...options });
-}
-
-export function lifecycleCommand(action, record = {}) {
-  if (action === "complete") {
-    return {
-      patch: { lifecycle: "completed", conversation_state: "ended" },
-      append_events: [{
-        type: "completed",
-        data: {
-          previous_conversation_state: record.conversation_state ?? "active",
-          previous_decision: record.decision ?? "not_now",
-        },
-      }],
-    };
-  }
-  if (action === "reopen") {
-    const completedEvent = Array.isArray(record.events)
-      ? [...record.events].reverse().find((event) => event?.type === "completed")
-      : null;
-    const wasExecuting = completedEvent?.data?.previous_conversation_state === "executing";
-    return {
-      patch: {
-        lifecycle: "open",
-        conversation_state: wasExecuting ? "executing" : "active",
-        decision: wasExecuting ? "do_now" : (completedEvent?.data?.previous_decision ?? "not_now"),
-      },
-      append_events: [{ type: "reopened", data: {} }],
-    };
-  }
-  throw new Error(`Invalid lifecycle action: ${action}`);
-}
-
-export async function completeConversation(id, { expectedRevision, ...options } = {}) {
-  const current = await getConversation(id, options);
-  return updateConversation(id, lifecycleCommand("complete", current), {
-    expectedRevision: expectedRevision ?? current.revision,
-    ...options,
-  });
-}
-
-export async function reopenConversation(id, { expectedRevision, ...options } = {}) {
-  const current = await getConversation(id, options);
-  return updateConversation(id, lifecycleCommand("reopen", current), {
-    expectedRevision: expectedRevision ?? current.revision,
-    ...options,
-  });
 }
 
 export async function deleteConversation(id, options = {}) {
