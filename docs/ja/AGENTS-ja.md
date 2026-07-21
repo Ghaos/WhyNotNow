@@ -19,7 +19,7 @@
 - `.agents/skills/wnn/` には、ユーザーが呼び出すスキルとその参照資料がある。
 - `server/` には、MCP サーバーと永続化キューがある。
 - `test/` には、Node のテストランナーで実行するテストがある。
-- `out/why-not-now/why-not-now-mcp.mjs` は、個人用 Codex プラグインで使うバンドル済み MCP サーバーである。`out/` は生成物であり、Git 管理しない。
+- `plugins/why-not-now/why-not-now-mcp.mjs` は、Codex プラグインで使うバンドル済み MCP サーバーである。`plugins/why-not-now/` は生成物であり、Git 配布のために管理する。
 
 ### 検証とビルド
 
@@ -29,14 +29,14 @@ npm.cmd test
 npm.cmd run build:plugin-server
 ```
 
-`build:plugin-server` は、単体で実行できる `out/why-not-now/why-not-now-mcp.mjs` を含む配布パッケージを生成する。実行時の依存関係はバンドルされるため、インストール済みプラグインには Node.js 20 以降だけが必要である。
+`build:plugin-server` は、単体で実行できる `plugins/why-not-now/why-not-now-mcp.mjs` を含む配布パッケージを生成する。実行時の依存関係はバンドルされるため、インストール済みプラグインには Node.js 20 以降だけが必要である。
 
 ### プラグインのパッケージ構成
 
 個人用プラグインは次の構成を持つ。
 
 ```text
-out/why-not-now/
+plugins/why-not-now/
 ├─ .codex-plugin/plugin.json
 ├─ .mcp.json
 ├─ why-not-now-mcp.mjs

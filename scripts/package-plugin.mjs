@@ -6,7 +6,7 @@ import { build } from "esbuild";
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageTemplate = resolve(projectRoot, "packaging", "why-not-now");
 const skillSource = resolve(projectRoot, ".agents", "skills", "wnn");
-const outputRoot = resolve(projectRoot, "out", "why-not-now");
+const outputRoot = resolve(projectRoot, "plugins", "why-not-now");
 const outputSkill = resolve(outputRoot, "skills", "wnn");
 const outputBundle = resolve(outputRoot, "why-not-now-mcp.mjs");
 

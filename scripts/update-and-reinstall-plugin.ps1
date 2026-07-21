@@ -19,7 +19,7 @@ function Invoke-NativeCommand {
 }
 
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
-$PackageSource = Join-Path $RepositoryRoot "out\why-not-now"
+$PackageSource = Join-Path $RepositoryRoot "plugins\why-not-now"
 $PluginManifest = Join-Path $PluginPath ".codex-plugin\plugin.json"
 $CachebusterScript = Join-Path $env:USERPROFILE ".codex\skills\.system\plugin-creator\scripts\update_plugin_cachebuster.py"
 $MarketplaceNameScript = Join-Path $env:USERPROFILE ".codex\skills\.system\plugin-creator\scripts\read_marketplace_name.py"

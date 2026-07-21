@@ -1,6 +1,6 @@
 # Plugin development and updates
 
-The WhyNotNow development source lives in this repository, and the distributed plugin is generated each time. `out/` is generated and is not tracked by Git.
+The WhyNotNow development source lives in this repository, and the distributed plugin is generated each time under `plugins/why-not-now/`. This generated package is tracked for Git-based distribution.
 
 ## Build the distributable package
 
@@ -11,7 +11,7 @@ npm.cmd run build:plugin-server
 npm.cmd run validate-plugin-package
 ```
 
-The generated `out/why-not-now/` contains the plugin manifest, MCP configuration, one MCP bundle, and only the skills required at runtime.
+The generated `plugins/why-not-now/` contains the plugin manifest, MCP configuration, one MCP bundle, and only the skills required at runtime.
 
 ## Update the personal plugin
 

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 
 const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const packageRoot = resolve(projectRoot, "out", "why-not-now");
+const packageRoot = resolve(projectRoot, "plugins", "why-not-now");
 const expectedFiles = new Set([
   ".codex-plugin/plugin.json",
   ".mcp.json",

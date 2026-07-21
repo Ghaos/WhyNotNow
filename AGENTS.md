@@ -19,7 +19,7 @@
 - `.agents/skills/wnn/` contains the user-invoked skill and its references.
 - `server/` contains the MCP server and persistence queue.
 - `test/` contains tests run by Node's test runner.
-- `out/why-not-now/why-not-now-mcp.mjs` is the bundled MCP server used by the personal Codex plugin. `out/` is generated and is not tracked by Git.
+- `plugins/why-not-now/why-not-now-mcp.mjs` is the bundled MCP server used by the Codex plugin. `plugins/why-not-now/` is generated and tracked for Git-based distribution.
 
 ### Verification and build
 
@@ -29,14 +29,14 @@ npm.cmd test
 npm.cmd run build:plugin-server
 ```
 
-`build:plugin-server` creates a distributable package containing the standalone `out/why-not-now/why-not-now-mcp.mjs`. Runtime dependencies are bundled, so an installed plugin needs only Node.js 20 or later.
+`build:plugin-server` creates a distributable package containing the standalone `plugins/why-not-now/why-not-now-mcp.mjs`. Runtime dependencies are bundled, so an installed plugin needs only Node.js 20 or later.
 
 ### Plugin package layout
 
 The personal plugin has this layout:
 
 ```text
-out/why-not-now/
+plugins/why-not-now/
 ├─ .codex-plugin/plugin.json
 ├─ .mcp.json
 ├─ why-not-now-mcp.mjs

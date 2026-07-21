@@ -1,6 +1,6 @@
 # プラグイン開発と更新
 
-WhyNotNow の開発用ソースはリポジトリ内に置き、配布するプラグインは毎回生成する。`out/` は生成物であり、Git 管理しない。
+WhyNotNow の開発用ソースはリポジトリ内に置き、配布するプラグインは毎回 `plugins/why-not-now/` に生成する。この生成済みパッケージは Git 配布のために管理する。
 
 ## 配布パッケージを生成する
 
@@ -11,7 +11,7 @@ npm.cmd run build:plugin-server
 npm.cmd run validate-plugin-package
 ```
 
-生成される `out/why-not-now/` には、プラグインのマニフェスト、MCP 設定、単一の MCP バンドル、実行時に必要なスキルだけが含まれる。
+生成される `plugins/why-not-now/` には、プラグインのマニフェスト、MCP 設定、単一の MCP バンドル、実行時に必要なスキルだけが含まれる。
 
 ## 個人用プラグインを更新する
 

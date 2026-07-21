@@ -1,0 +1,26 @@
+{
+  "name": "why-not-now",
+  "version": "0.1.0",
+  "description": "Capture deferred work in Codex and manage it from a local dashboard.",
+  "author": {
+    "name": "WhyNotNow"
+  },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Why Not Now",
+    "shortDescription": "Discuss deferred work and track it in a local dashboard.",
+    "longDescription": "A three-state deferred-work dashboard with separate Codex sessions for reflection and execution. Capture tasks, discuss why not now, and start work with useful saved context without storing session links.",
+    "developerName": "WhyNotNow",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use $wnn to capture a task and discuss why it should wait.",
+      "Open the WhyNotNow dashboard at http://127.0.0.1:49321/.",
+      "Use the dashboard to discuss or execute a saved WhyNotNow task in a fresh Codex session."
+    ]
+  }
+}
