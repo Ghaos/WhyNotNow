@@ -121,7 +121,7 @@ export function dashboardHtml({ csrfToken, nonce }) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="${safeToken}">
-  <title>WhyNotNow</title>
+  <title>Why Not Now?</title>
   <style nonce="${safeNonce}">
     :root{color-scheme:light;--ink:#1d1d1f;--muted:#6e6e73;--line:rgba(60,60,67,.16);--paper:#f5f5f7;--card:rgba(255,255,255,.8);--accent:#007a52;--soft:#e4f3eb;--danger:#ba3329;--shadow:0 16px 42px rgba(28,28,30,.08),0 2px 7px rgba(28,28,30,.04)}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 13% -10%,#e7f3ec 0,transparent 30rem),linear-gradient(180deg,#fbfbfd,var(--paper));color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}main{width:min(780px,calc(100% - 40px));margin:auto;padding:64px 0 72px}h1{margin:0;font-size:44px;letter-spacing:-.045em}.subtitle{margin:10px 0 28px;color:var(--muted)}
@@ -132,7 +132,7 @@ export function dashboardHtml({ csrfToken, nonce }) {
   </style>
 </head>
 <body><main>
-  <h1>WhyNotNow</h1><p id="subtitle" class="subtitle">Choose what happens next.</p>
+  <h1>Why Not Now?</h1><p id="subtitle" class="subtitle">Choose what happens next.</p>
   <p id="status" role="status" aria-live="polite"></p>
   <form id="capture-form" class="capture"><label id="task-text-label" class="sr-only" for="task-text">Task</label><textarea id="task-text" maxlength="4000" required></textarea><button id="capture-submit" type="submit">Add</button></form>
   <nav class="tabs" aria-label="Task status">
