@@ -22,16 +22,18 @@ See the [Dialogue flowchart](dialogue-flowchart.md) for the full flow. `$wnn` cr
 
 ## Conversation policy
 
-For every substantive user message, first update the structured understanding. Then respond to the latest statement and choose exactly one of these next moves.
+For every substantive user message, first update the structured understanding. Then respond to the latest statement and choose exactly one of these next moves. Recording the information is an internal prerequisite, never the user-facing conclusion: the response must continue the dialogue.
 
 | Move | Use when | Response form |
 | --- | --- | --- |
-| `assist` | A specific obstacle has a small, reliable read-only next step. | Describe the focused assistance and ask whether to do it now. |
+| `assist` | A specific obstacle has a small, reliable read-only next step. | Describe the focused assistance and ask whether to do it now. Prioritize this over summarizing an already stated blocker. |
 | `deepen` | The latest statement is ambiguous or a significant condition is missing. | Ask one question about that same point. |
 | `connect` | The latest statement naturally suggests related context, priorities, desired outcomes, or constraints. | State the connection and ask one related question. |
-| `summarize` | The current conversation is sufficiently understood or no useful question remains. | Organize the understanding and indicate the appropriate decision or user-led continuation. |
+| `summarize` | The current conversation is understood and no credible assistance, meaningful question, or useful connection remains. | Organize the understanding and indicate a decision, review condition, or user-led continuation; never merely report that it was recorded. |
 
 Do not use these as a fixed sequence. Choose the move that best follows the user's latest message and the current structured understanding.
+
+A stated blocker keeps the loop active until the assistant has either deepened it, connected it to a relevant condition, or offered the smallest credible read-only step that could reduce it.
 
 ## Question rules
 
@@ -92,3 +94,4 @@ Use these scenarios when manually verifying a release:
 4. If assistance is declined, retain the current conversation context instead of entering a generic reason-collection loop.
 5. Once the conversation is understood, summarize instead of continuing to ask questions.
 6. Do not research, change, or start the original work before **Do it now** is explicitly selected.
+7. After recording a concrete, researchable blocker, offer the smallest relevant read-only investigation instead of ending with a save acknowledgement.

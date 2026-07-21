@@ -1,4 +1,4 @@
 interface:
-  display_name: "WhyNotNow を開始"
+  display_name: "Init Why Not Now?"
   short_description: "Launch the local WhyNotNow dashboard"
   default_prompt: "Use $wnn-init to start WhyNotNow and open its dashboard."
