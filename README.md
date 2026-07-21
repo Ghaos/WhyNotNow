@@ -2,6 +2,18 @@
 
 WhyNotNow is a local dashboard for capturing tasks you do not want to start yet, clarifying why through a Codex conversation, and later starting them with the relevant context.
 
+## Built with Codex and GPT-5.6
+
+WhyNotNow is itself a Codex plugin: its `$wnn` skill and local MCP server let
+Codex capture deferred work, discuss the reasons for waiting, and pass the
+saved context into a new execution task when the user selects **Do it now**.
+
+Codex with GPT-5.6 was also used throughout development as a collaborative
+engineering partner. It helped turn the initial idea into the three-state
+workflow, clarify the boundary between reflection and execution, review the
+privacy and persistence design, and iterate on the plugin, dashboard, tests,
+and distribution package.
+
 ## Install and use
 
 You need Codex with plugin support and Node.js 20 or later. Add the Git marketplace that publishes WhyNotNow, then install the plugin. Replace the placeholders with the repository and marketplace name supplied by the publisher.
