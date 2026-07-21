@@ -28,16 +28,17 @@ flowchart TD
 
     Q --> N["User explains circumstances"]
     N --> O["Store structured goals, reasons, obstacles,<br/>constraints, completion criteria, and more"]
-    O --> P{"Continue the dialogue:<br/>choose the next move"}
-    P -->|"Deepen"| Q2["Ask about one immediate point"]
+    O --> P{"Response gate: never send<br/>a save acknowledgement"}
+    P --> P2{"Choose exactly one<br/>forward-moving outcome"}
+    P2 -->|"Deepen"| Q2["Ask about one immediate point"]
     Q2 --> N
-    P -->|"Connect"| Q3["Connect to context, conditions, or expectations"]
+    P2 -->|"Connect"| Q3["Connect to context, conditions, or expectations"]
     Q3 --> N
-    P -->|"Known blocker has a credible<br/>read-only next step"| S["Present scope and expected result; obtain consent"]
+    P2 -->|"Known blocker has a credible<br/>read-only next step"| S["Present scope and expected result; obtain consent"]
     S -->|"Accepted"| T["Research read-only and<br/>store structured findings"]
     T --> P
     S -->|"Declined"| P
-    P -->|"No useful step or question remains"| U["Summarize with a decision or review condition;<br/>if needed, point to Do it now in the dashboard"]
+    P2 -->|"No useful step or question remains"| U["Summarize and explicitly point to<br/>Do it now in the dashboard"]
 
     M -. "Do not store session IDs or links" .-> V["Codex task list"]
 ```

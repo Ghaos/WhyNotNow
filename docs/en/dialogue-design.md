@@ -35,6 +35,16 @@ Do not use these as a fixed sequence. Choose the move that best follows the user
 
 A stated blocker keeps the loop active until the assistant has either deepened it, connected it to a relevant condition, or offered the smallest credible read-only step that could reduce it.
 
+### Mandatory response gate
+
+Before sending a response to a substantive why-not-now turn, verify that it contains exactly one forward-moving outcome tied to the latest point:
+
+1. A targeted question that deepens or connects the blocker
+2. A concrete assistance offer with scope, expected result or limitation, and a consent question
+3. A summary that explicitly directs the user to choose **Do it now** in the dashboard when they are ready to proceed
+
+A response that only acknowledges recording, saving, updating, or understanding information is invalid and must be replaced with one of these outcomes. Storage does not count as a conversational outcome.
+
 ## Question rules
 
 - Ask at most one central question per response.
@@ -84,6 +94,12 @@ User: “It might be useful someday, but it is not urgent and I still do not und
 
 Assistant: “It appears valuable, but the immediate priority and a clear starting point are missing. Deferring it until one of those changes seems reasonable.”
 
+### Continue after recording a blocker
+
+User: “I cannot make a demo video because Codex responds in Japanese.”
+
+Assistant: “Is English required because the demo itself must be in English, or because the reliable way to make Codex respond in English is unclear?”
+
 ## Acceptance scenarios
 
 Use these scenarios when manually verifying a release:
@@ -95,3 +111,4 @@ Use these scenarios when manually verifying a release:
 5. Once the conversation is understood, summarize instead of continuing to ask questions.
 6. Do not research, change, or start the original work before **Do it now** is explicitly selected.
 7. After recording a concrete, researchable blocker, offer the smallest relevant read-only investigation instead of ending with a save acknowledgement.
+8. Reject a draft that only acknowledges recording a blocker; it must instead ask one targeted question, make one assistance offer, or direct a sufficiently understood conversation to **Do it now**.

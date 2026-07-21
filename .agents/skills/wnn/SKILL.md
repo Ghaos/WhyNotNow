@@ -170,6 +170,28 @@ makes it relevant. In particular, a stated blocker keeps the loop active until
 the assistant has either deepened it, connected it to a relevant condition, or
 offered the smallest credible read-only step that could reduce it.
 
+### Mandatory response gate
+
+Before sending a response to a substantive why-not-now turn, check the draft.
+It must contain exactly one forward-moving outcome tied to the latest point:
+
+1. one targeted **question** that deepens or connects the blocker;
+2. one concrete **assistance offer** with its scope, expected result or
+   limitation, and a consent question; or
+3. a **summary** that says the thread is sufficiently understood and explicitly
+   directs the user to choose **Do it now** in the dashboard when they are
+   ready to proceed.
+
+If the draft only says that information was recorded, saved, updated, or
+understood, it is invalid. Do not send it. Return to **Choose the next move**
+and produce one of the three outcomes above. A storage operation never counts
+as an outcome.
+
+For example, after the user says, "I cannot make a demo video because Codex
+responds in Japanese," do not answer with a record acknowledgement. Ask which
+part of the demo requires English, or offer to verify the smallest reliable
+way to obtain English responses for the demo.
+
 ### Assistance and research
 
 If the user explicitly accepts the plain-text assistance offer, call
