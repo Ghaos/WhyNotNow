@@ -2,6 +2,31 @@
 
 WhyNotNow is a local dashboard for capturing tasks you do not want to start yet, clarifying why through a Codex conversation, and later starting them with the relevant context.
 
+## Install and use
+
+You need Codex with plugin support and Node.js 20 or later. Add the Git marketplace that publishes WhyNotNow, then install the plugin. Replace the placeholders with the repository and marketplace name supplied by the publisher.
+
+```powershell
+codex plugin marketplace add <owner>/<repository> --ref main
+codex plugin add why-not-now@<marketplace-name>
+```
+
+Start a new Codex task after installation, then capture a task without starting its underlying work:
+
+```text
+$wnn Investigate whether we should simplify the onboarding email
+```
+
+WhyNotNow records this as **Considering** and asks about what prevents it now. Reply normally to organize the task's value, blockers, constraints, and completion conditions. It will not execute the task in this conversation.
+
+While Codex and the WhyNotNow plugin are running, open [http://127.0.0.1:49321/](http://127.0.0.1:49321/) to use the local dashboard:
+
+1. Add a task in the dashboard to create a **Before** item.
+2. Choose **Why not now?** to open a new Codex conversation that explores the item without executing it.
+3. Choose **Do it now** when you are ready. It opens a separate Codex task and starts the saved work with its collected context.
+
+Use Codex's task list to return to conversations later; the dashboard does not retain links to launched tasks.
+
 ## Core flow
 
 Open the dashboard at [http://127.0.0.1:49321/](http://127.0.0.1:49321/). A task has only three states:
