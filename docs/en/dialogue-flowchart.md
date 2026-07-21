@@ -4,6 +4,9 @@ This diagram shows the dashboard's three states and the two kinds of Codex sessi
 
 ```mermaid
 flowchart TD
+    Z["Invoke $wnn-init"] --> ZA["Start the local dashboard service"]
+    ZA --> ZB["Open the dashboard in a browser"]
+    ZB --> A
     A["Create task in dashboard"] --> B["Before"]
     C["Record task with $wnn"] --> D["Considering"]
     C --> Q["Do not execute original task;<br/>ask about one obstacle"]

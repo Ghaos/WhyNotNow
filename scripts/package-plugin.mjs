@@ -5,17 +5,17 @@ import { build } from "esbuild";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageTemplate = resolve(projectRoot, "packaging", "why-not-now");
-const skillSource = resolve(projectRoot, ".agents", "skills", "wnn");
+const skillsSource = resolve(projectRoot, ".agents", "skills");
 const outputRoot = resolve(projectRoot, "plugins", "why-not-now");
-const outputSkill = resolve(outputRoot, "skills", "wnn");
+const outputSkills = resolve(outputRoot, "skills");
 const outputBundle = resolve(outputRoot, "why-not-now-mcp.mjs");
 
 await rm(outputRoot, { recursive: true, force: true });
 await mkdir(outputRoot, { recursive: true });
 
 await cp(packageTemplate, outputRoot, { recursive: true });
-await mkdir(dirname(outputSkill), { recursive: true });
-await cp(skillSource, outputSkill, { recursive: true });
+await mkdir(dirname(outputSkills), { recursive: true });
+await cp(skillsSource, outputSkills, { recursive: true });
 
 await build({
   entryPoints: [resolve(projectRoot, "server", "index.mjs")],

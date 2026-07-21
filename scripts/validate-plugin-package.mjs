@@ -14,6 +14,8 @@ const expectedFiles = new Set([
   "skills/wnn/references/schema.md",
   "skills/wnn/scripts/store.mjs",
   "skills/wnn/scripts/whynotnow.mjs",
+  "skills/wnn-init/SKILL.md",
+  "skills/wnn-init/agents/openai.yaml",
 ]);
 
 async function listFiles(directory) {
